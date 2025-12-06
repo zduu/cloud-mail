@@ -8,7 +8,6 @@ import constant from '../const/constant';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n'
 import verifyRecordService from './verify-record-service';
-import adminUtils from '../utils/admin-utils';
 
 const settingService = {
 
@@ -229,13 +228,7 @@ const settingService = {
 	async websiteConfig(c) {
 
 		const settingRow = await this.get(c, true)
-		const adminDomainTag = adminUtils.getAdminDomainTag(c);
-		const rawLoginDomainList = settingRow.loginDomainList.length > 0 ? settingRow.loginDomainList : settingRow.domainList;
-		const displayDomainList = adminDomainTag ? settingRow.domainList.filter(item => item !== adminDomainTag) : settingRow.domainList;
-		let displayLoginDomainList = adminDomainTag ? rawLoginDomainList.filter(item => item !== adminDomainTag) : rawLoginDomainList;
-		if (displayLoginDomainList.length === 0) {
-			displayLoginDomainList = displayDomainList;
-		}
+		const loginDomainList = settingRow.loginDomainList.length > 0 ? settingRow.loginDomainList : settingRow.domainList;
 
 		return {
 			register: settingRow.register,
@@ -250,8 +243,8 @@ const settingService = {
 			siteKey: settingRow.siteKey,
 			background: settingRow.background,
 			loginOpacity: settingRow.loginOpacity,
-			domainList: displayDomainList,
-			loginDomainList: displayLoginDomainList,
+			domainList: settingRow.domainList,
+			loginDomainList,
 			regKey: settingRow.regKey,
 			regVerifyOpen: settingRow.regVerifyOpen,
 			addVerifyOpen: settingRow.addVerifyOpen,
