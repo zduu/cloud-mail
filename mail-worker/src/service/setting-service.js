@@ -14,6 +14,11 @@ const settingService = {
 	async refresh(c) {
 		const settingRow = await orm(c).select().from(setting).get();
 		settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
+		try {
+			settingRow.loginDomainList = JSON.parse(settingRow.loginDomainList || '[]');
+		} catch (e) {
+			settingRow.loginDomainList = [];
+		}
 		c.set('setting', settingRow);
 		await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
 	},
@@ -38,7 +43,20 @@ const settingService = {
 			} catch (e) {
 				settingRow.resendTokens = {};
 			}
+			try {
+				settingRow.loginDomainList = JSON.parse(settingRow.loginDomainList || '[]');
+			} catch (e) {
+				settingRow.loginDomainList = [];
+			}
 			await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
+		}
+
+		if (!Array.isArray(settingRow.loginDomainList)) {
+			try {
+				settingRow.loginDomainList = JSON.parse(settingRow.loginDomainList || '[]');
+			} catch (error) {
+				settingRow.loginDomainList = [];
+			}
 		}
 
 		let domainList = c.env.domain;
@@ -57,6 +75,9 @@ const settingService = {
 
 		domainList = domainList.map(item => '@' + item);
 		settingRow.domainList = domainList;
+
+		const validLoginDomainList = settingRow.loginDomainList.filter(item => domainList.includes(item));
+		settingRow.loginDomainList = validLoginDomainList;
 
 
 		let linuxdoSwitch = c.env.linuxdo_switch;
@@ -130,6 +151,14 @@ const settingService = {
 			params.emailPrefixFilter = params.emailPrefixFilter + '';
 		}
 
+		if (params.loginDomainList !== undefined) {
+			if (Array.isArray(params.loginDomainList)) {
+				params.loginDomainList = JSON.stringify(params.loginDomainList);
+			} else if (!params.loginDomainList) {
+				params.loginDomainList = '[]';
+			}
+		}
+
 		params.resendTokens = JSON.stringify(resendTokens);
 		await orm(c).update(setting).set({ ...params }).returning().get();
 		await this.refresh(c);
@@ -199,6 +228,7 @@ const settingService = {
 	async websiteConfig(c) {
 
 		const settingRow = await this.get(c, true)
+		const loginDomainList = settingRow.loginDomainList.length > 0 ? settingRow.loginDomainList : settingRow.domainList;
 
 		return {
 			register: settingRow.register,
@@ -214,6 +244,7 @@ const settingService = {
 			background: settingRow.background,
 			loginOpacity: settingRow.loginOpacity,
 			domainList: settingRow.domainList,
+			loginDomainList,
 			regKey: settingRow.regKey,
 			regVerifyOpen: settingRow.regVerifyOpen,
 			addVerifyOpen: settingRow.addVerifyOpen,

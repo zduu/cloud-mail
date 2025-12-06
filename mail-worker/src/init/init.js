@@ -25,6 +25,7 @@ const init = {
 		await this.v2_3DB(c);
 		await this.v2_4DB(c);
 		await this.v2_5DB(c);
+		await this.v2_6DB(c);
 		await settingService.refresh(c);
 		return c.text(t('initSuccess'));
 	},
@@ -42,6 +43,16 @@ const init = {
 				c.env.db.prepare(`ALTER TABLE email ADD COLUMN unread INTEGER NOT NULL DEFAULT 0;`).run(),
 				c.env.db.prepare(`UPDATE email SET unread = 1;`).run()
 			]);
+		} catch (e) {
+			console.error(e)
+		}
+
+	},
+
+	async v2_6DB(c) {
+
+		try {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN login_domain_list TEXT NOT NULL DEFAULT '[]';`).run();
 		} catch (e) {
 			console.error(e)
 		}

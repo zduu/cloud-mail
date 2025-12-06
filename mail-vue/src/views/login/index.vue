@@ -193,9 +193,9 @@ const registerForm = reactive({
   confirmPassword: '',
   code: null
 })
-const domainList = settingStore.domainList;
+const domainList = computed(() => settingStore.loginDomainList.length ? settingStore.loginDomainList : settingStore.domainList);
 const registerLoading = ref(false)
-suffix.value = domainList[0]
+suffix.value = domainList.value?.[0] || ''
 const verifyShow = ref(false)
 let verifyToken = ''
 let turnstileId = null

@@ -35,6 +35,7 @@ export async function init() {
         setting = s;
         settingStore.settings = setting;
         settingStore.domainList = setting.domainList;
+        settingStore.loginDomainList = setting.loginDomainList?.length ? setting.loginDomainList : setting.domainList;
         document.title = setting.title;
 
         if (user) {
@@ -51,6 +52,7 @@ export async function init() {
         setting = await websiteConfig();
         settingStore.settings = setting;
         settingStore.domainList = setting.domainList;
+        settingStore.loginDomainList = setting.loginDomainList?.length ? setting.loginDomainList : setting.domainList;
         document.title = setting.title;
     }
 
@@ -67,4 +69,3 @@ function removeLoading() {
         doc.remove()
     },1000)
 }
-

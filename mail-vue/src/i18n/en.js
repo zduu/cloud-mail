@@ -138,6 +138,7 @@ const en = {
     websiteSetting: 'Website',
     websiteReg: 'Sign Up',
     loginDomain: 'Sign-In Box Domain',
+    loginDomainLimit: 'Login Dropdown Domains',
     multipleEmail: 'Multiple Accounts',
     multipleEmailDesc: 'Enable this feature to allow users to add multiple accounts',
     customization: 'Customization',
