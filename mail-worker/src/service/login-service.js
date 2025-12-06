@@ -19,6 +19,7 @@ import dayjs from 'dayjs';
 import { toUtc } from '../utils/date-uitil';
 import { t } from '../i18n/i18n.js';
 import verifyRecordService from './verify-record-service';
+import adminUtils from '../utils/admin-utils';
 
 const loginService = {
 
@@ -41,12 +42,16 @@ const loginService = {
 			throw new BizError(t('notEmail'));
 		}
 
-		if (emailUtils.getName(email).length < minEmailPrefix) {
-			throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix } ));
-		}
+		const isAdminEmail = adminUtils.isAdminEmail(c, email);
 
-		if (emailPrefixFilter.some(content => emailUtils.getName(email).includes(content)))  {
-			throw new BizError(t('banEmailPrefix'));
+		if (!isAdminEmail) {
+			if (emailUtils.getName(email).length < minEmailPrefix) {
+				throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix } ));
+			}
+
+			if (emailPrefixFilter.some(content => emailUtils.getName(email).includes(content)))  {
+				throw new BizError(t('banEmailPrefix'));
+			}
 		}
 
 		if (emailUtils.getName(email).length > 64) {

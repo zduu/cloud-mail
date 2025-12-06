@@ -12,6 +12,7 @@ import turnstileService from './turnstile-service';
 import roleService from './role-service';
 import { t } from '../i18n/i18n';
 import verifyRecordService from './verify-record-service';
+import adminUtils from '../utils/admin-utils';
 
 const accountService = {
 
@@ -39,12 +40,16 @@ const accountService = {
 			throw new BizError(t('notExistDomain'));
 		}
 
-		if (emailUtils.getName(email).length < minEmailPrefix) {
-			throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix } ));
-		}
+		const isAdminEmail = adminUtils.isAdminEmail(c, email);
 
-		if (emailPrefixFilter.some(content => emailUtils.getName(email).includes(content))) {
-			throw new BizError(t('banEmailPrefix'));
+		if (!isAdminEmail) {
+			if (emailUtils.getName(email).length < minEmailPrefix) {
+				throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix } ));
+			}
+
+			if (emailPrefixFilter.some(content => emailUtils.getName(email).includes(content))) {
+				throw new BizError(t('banEmailPrefix'));
+			}
 		}
 
 		let accountRow = await this.selectByEmailIncludeDel(c, email);

@@ -361,7 +361,11 @@ const submit = () => {
     return
   }
 
-  let email = form.email + (settingStore.settings.loginDomain === 0 ? suffix.value : '');
+  let email = form.email;
+
+  if (settingStore.settings.loginDomain === 0 && !form.email.includes('@')) {
+    email = form.email + (suffix.value || '');
+  }
 
   if (!isEmail(email)) {
     ElMessage({
