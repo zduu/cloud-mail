@@ -24,7 +24,22 @@ const settingService = {
 			return c.get('setting')
 		}
 
-		const setting = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
+		let settingRow = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
+
+		// 本地首次启动 KV 可能为空，回落到数据库并刷新 KV
+		if (!settingRow) {
+			settingRow = await orm(c).select().from(setting).get();
+			if (!settingRow) {
+				throw new BizError(t('initFirst'));
+			}
+			try {
+				// 确保 resendTokens 为对象
+				settingRow.resendTokens = JSON.parse(settingRow.resendTokens || '{}');
+			} catch (e) {
+				settingRow.resendTokens = {};
+			}
+			await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
+		}
 
 		let domainList = c.env.domain;
 
@@ -41,7 +56,7 @@ const settingService = {
 		}
 
 		domainList = domainList.map(item => '@' + item);
-		setting.domainList = domainList;
+		settingRow.domainList = domainList;
 
 
 		let linuxdoSwitch = c.env.linuxdo_switch;
@@ -54,14 +69,14 @@ const settingService = {
 			linuxdoSwitch = false
 		}
 
-		setting.linuxdoClientId = c.env.linuxdo_client_id;
-		setting.linuxdoCallbackUrl = c.env.linuxdo_callback_url;
-		setting.linuxdoSwitch = linuxdoSwitch;
+		settingRow.linuxdoClientId = c.env.linuxdo_client_id;
+		settingRow.linuxdoCallbackUrl = c.env.linuxdo_callback_url;
+		settingRow.linuxdoSwitch = linuxdoSwitch;
 
-		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
+		settingRow.emailPrefixFilter = settingRow.emailPrefixFilter?.split(",").filter(Boolean) ?? [];
 
-		c.set?.('setting', setting);
-		return setting;
+		c.set?.('setting', settingRow);
+		return settingRow;
 	},
 
 	async get(c, showSiteKey = false) {

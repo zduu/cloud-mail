@@ -13,10 +13,21 @@
                @jump="jumpContent"
   >
     <template #first>
+      <el-radio-group class="scope-switch" v-model="mailScope" size="small" @change="handleScopeChange">
+        <el-radio-button label="single">{{ $t('currentMailbox') }}</el-radio-button>
+        <el-radio-button label="all">{{ $t('allMailboxes') }}</el-radio-button>
+      </el-radio-group>
       <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
             v-if="params.timeSort === 0" width="28" height="28"/>
       <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-up-outline" v-else
             width="28" height="28"/>
+    </template>
+
+    <template #name="{ email }">
+      <span class="name-cell">
+        <span v-if="isAllScope" class="account-tag">{{ email.accountEmail || email.toEmail }}</span>
+        <span class="sender-name">{{ email.name }}</span>
+      </span>
     </template>
 
   </emailScroll>
@@ -29,7 +40,7 @@ import {useSettingStore} from "@/store/setting.js";
 import emailScroll from "@/components/email-scroll/index.vue"
 import {emailList, emailDelete, emailLatest, emailRead} from "@/request/email.js";
 import {starAdd, starCancel} from "@/request/star.js";
-import {defineOptions, h, onMounted, reactive, ref, watch} from "vue";
+import {computed, defineOptions, onMounted, reactive, ref, watch} from "vue";
 import {sleep} from "@/utils/time-utils.js";
 import router from "@/router/index.js";
 import {Icon} from "@iconify/vue";
@@ -45,6 +56,8 @@ const scroll = ref({})
 const params = reactive({
   timeSort: 0,
 })
+const mailScope = ref('single')
+const isAllScope = computed(() => mailScope.value === 'all')
 
 onMounted(() => {
   emailStore.emailScroll = scroll;
@@ -58,6 +71,10 @@ watch(() => accountStore.currentAccountId, () => {
 
 function changeTimeSort() {
   params.timeSort = params.timeSort ? 0 : 1
+  scroll.value.refreshList();
+}
+
+function handleScopeChange() {
   scroll.value.refreshList();
 }
 
@@ -78,17 +95,20 @@ async function latest() {
 
     if (!scroll.value.firstLoad && settingStore.settings.autoRefreshTime) {
       try {
-        const accountId = accountStore.currentAccountId
+        const accountId = isAllScope.value ? 0 : accountStore.currentAccountId
         const curTimeSort = params.timeSort
+        const curScopeAll = isAllScope.value
         let list = []
 
         //确保发起请求时最后一个邮件是当前账号的,或者
-        if (accountId === scroll.value.latestEmail?.accountId) {
-          list = await emailLatest(latestId, accountId);
+        if (curScopeAll || accountId === scroll.value.latestEmail?.accountId) {
+          list = await emailLatest(latestId, accountId, curScopeAll ? 1 : 0);
         }
 
         //确保请求回来后，账号没有切换，时间排序没有改变
-        if (accountId === accountStore.currentAccountId && params.timeSort === curTimeSort) {
+        const accountNoChange = curScopeAll || accountId === accountStore.currentAccountId
+
+        if (accountNoChange && params.timeSort === curTimeSort && curScopeAll === isAllScope.value) {
           if (list.length > 0) {
 
             for (let email of list) {
@@ -135,12 +155,39 @@ function cancelStar(email) {
 }
 
 function getEmailList(emailId, size) {
-  return emailList(accountStore.currentAccountId, emailId, params.timeSort, size, 0)
+  const allAccount = isAllScope.value ? 1 : 0
+  const accountId = allAccount ? 0 : accountStore.currentAccountId
+  return emailList(accountId, emailId, params.timeSort, size, 0, allAccount)
 }
 
 </script>
 <style>
 .icon {
   cursor: pointer;
+}
+
+.scope-switch {
+  margin-right: 8px;
+}
+
+.name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.account-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: var(--el-fill-color-light);
+  color: var(--secondary-text-color);
+  font-size: 12px;
+}
+
+.sender-name {
+  display: inline-flex;
+  align-items: center;
 }
 </style>

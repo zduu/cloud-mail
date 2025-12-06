@@ -7,6 +7,8 @@ const en = {
     analytics: 'Analytics',
     allUsers: 'All Users',
     allMail: 'All Mail',
+    currentMailbox: 'This Mailbox',
+    allMailboxes: 'All Mailboxes',
     permissions: 'Role',
     inviteCode: 'Invite Code',
     SystemSettings: 'System Settings',

@@ -1,5 +1,6 @@
 import orm from '../entity/orm';
 import email from '../entity/email';
+import account from '../entity/account';
 import { attConst, emailConst, isDel, settingConst } from '../const/entity-const';
 import { and, desc, eq, gt, inArray, lt, count, asc, sql, ne, or, like, lte, gte } from 'drizzle-orm';
 import { star } from '../entity/star';
@@ -24,12 +25,13 @@ const emailService = {
 
 	async list(c, params, userId) {
 
-		let { emailId, type, accountId, size, timeSort } = params;
+		let { emailId, type, accountId, size, timeSort, allAccount } = params;
 
 		size = Number(size);
 		emailId = Number(emailId);
 		timeSort = Number(timeSort);
 		accountId = Number(accountId);
+		const includeAllAccount = allAccount === true || allAccount === 'true' || Number(allAccount) === 1;
 
 		if (size > 30) {
 			size = 30;
@@ -46,11 +48,26 @@ const emailService = {
 		}
 
 
+		const baseSelect = {
+			...email,
+			starId: star.starId,
+			accountEmail: account.email,
+			accountName: account.name
+		}
+
+		const listConditions = [
+			eq(email.userId, userId),
+			timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId),
+			eq(email.type, type),
+			eq(email.isDel, isDel.NORMAL)
+		]
+
+		if (!includeAllAccount) {
+			listConditions.push(eq(email.accountId, accountId));
+		}
+
 		const query = orm(c)
-			.select({
-				...email,
-				starId: star.starId
-			})
+			.select(baseSelect)
 			.from(email)
 			.leftJoin(
 				star,
@@ -59,15 +76,8 @@ const emailService = {
 					eq(star.userId, userId)
 				)
 			)
-			.where(
-				and(
-					eq(email.userId, userId),
-					eq(email.accountId, accountId),
-					timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId),
-					eq(email.type, type),
-					eq(email.isDel, isDel.NORMAL)
-				)
-			);
+			.leftJoin(account, eq(account.accountId, email.accountId))
+			.where(and(...listConditions));
 
 		if (timeSort) {
 			query.orderBy(asc(email.emailId));
@@ -77,22 +87,32 @@ const emailService = {
 
 		const listQuery = query.limit(size).all();
 
+		const totalConditions = [
+			eq(email.userId, userId),
+			eq(email.type, type),
+			eq(email.isDel, isDel.NORMAL)
+		]
+
+		if (!includeAllAccount) {
+			totalConditions.push(eq(email.accountId, accountId));
+		}
+
 		const totalQuery = orm(c).select({ total: count() }).from(email).where(
-			and(
-				eq(email.accountId, accountId),
-				eq(email.userId, userId),
-				eq(email.type, type),
-				eq(email.isDel, isDel.NORMAL)
-			)
+			and(...totalConditions)
 		).get();
 
+		const latestConditions = [
+			eq(email.userId, userId),
+			eq(email.type, type),
+			eq(email.isDel, isDel.NORMAL)
+		]
+
+		if (!includeAllAccount) {
+			latestConditions.push(eq(email.accountId, accountId));
+		}
+
 		const latestEmailQuery = orm(c).select().from(email).where(
-			and(
-				eq(email.accountId, accountId),
-				eq(email.userId, userId),
-				eq(email.type, type),
-				eq(email.isDel, isDel.NORMAL)
-			))
+			and(...latestConditions))
 			.orderBy(desc(email.emailId)).limit(1).get();
 
 		let [list, totalRow, latestEmail] = await Promise.all([listQuery, totalQuery, latestEmailQuery]);
@@ -114,7 +134,7 @@ const emailService = {
 		if (!latestEmail) {
 			latestEmail = {
 				emailId: 0,
-				accountId: accountId,
+				accountId: includeAllAccount ? 0 : accountId,
 				userId: userId,
 			}
 		}
@@ -445,15 +465,32 @@ const emailService = {
 	},
 
 	async latest(c, params, userId) {
-		let { emailId, accountId } = params;
-		const list = await orm(c).select().from(email).where(
-			and(
-				eq(email.userId, userId),
-				eq(email.isDel, isDel.NORMAL),
-				eq(email.accountId, accountId),
-				eq(email.type, emailConst.type.RECEIVE),
-				gt(email.emailId, emailId)
-			))
+		let { emailId, accountId, allAccount } = params;
+
+		emailId = Number(emailId);
+		accountId = Number(accountId);
+		const includeAllAccount = allAccount === true || allAccount === 'true' || Number(allAccount) === 1;
+
+		const conditions = [
+			eq(email.userId, userId),
+			eq(email.isDel, isDel.NORMAL),
+			eq(email.type, emailConst.type.RECEIVE),
+			gt(email.emailId, emailId)
+		]
+
+		if (!includeAllAccount) {
+			conditions.push(eq(email.accountId, accountId));
+		}
+
+		const list = await orm(c).select({
+			...email,
+			accountEmail: account.email,
+			accountName: account.name,
+			starId: star.starId
+		}).from(email)
+			.leftJoin(account, eq(account.accountId, email.accountId))
+			.leftJoin(star, and(eq(star.emailId, email.emailId), eq(star.userId, userId)))
+			.where(and(...conditions))
 			.orderBy(desc(email.emailId))
 			.limit(20);
 
@@ -466,6 +503,7 @@ const emailService = {
 			list.forEach(emailRow => {
 				const atts = attsList.filter(attsRow => attsRow.emailId === emailRow.emailId);
 				emailRow.attList = atts;
+				emailRow.isStar = emailRow.starId != null ? 1 : 0;
 			});
 		}
 
