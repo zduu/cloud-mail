@@ -36,12 +36,32 @@ export async function email(message, env, ctx) {
 
 
 		const reader = message.raw.getReader();
-		let content = '';
+		const chunks = [];
+		let totalLength = 0;
 
 		while (true) {
 			const { done, value } = await reader.read();
 			if (done) break;
-			content += new TextDecoder().decode(value);
+			if (value) {
+				const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+				chunks.push(chunk);
+				totalLength += chunk.length;
+			}
+		}
+
+		let content;
+
+		if (chunks.length === 0) {
+			content = new Uint8Array(0);
+		} else if (chunks.length === 1) {
+			content = chunks[0];
+		} else {
+			content = new Uint8Array(totalLength);
+			let offset = 0;
+			for (const chunk of chunks) {
+				content.set(chunk, offset);
+				offset += chunk.length;
+			}
 		}
 
 		const email = await PostalMime.parse(content);
