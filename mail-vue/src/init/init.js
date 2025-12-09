@@ -36,6 +36,7 @@ export async function init() {
         settingStore.settings = setting;
         settingStore.domainList = setting.domainList;
         settingStore.loginDomainList = setting.loginDomainList?.length ? setting.loginDomainList : setting.domainList;
+        settingStore.sendDomainList = setting.sendDomainList || [];
         document.title = setting.title;
 
         if (user) {
@@ -53,6 +54,7 @@ export async function init() {
         settingStore.settings = setting;
         settingStore.domainList = setting.domainList;
         settingStore.loginDomainList = setting.loginDomainList?.length ? setting.loginDomainList : setting.domainList;
+        settingStore.sendDomainList = setting.sendDomainList || [];
         document.title = setting.title;
     }
 

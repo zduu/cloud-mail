@@ -8,6 +8,7 @@ import settingService from './setting-service';
 import accountService from './account-service';
 import BizError from '../error/biz-error';
 import emailUtils from '../utils/email-utils';
+import verifyUtils from '../utils/verify-utils';
 import { Resend } from 'resend';
 import attService from './att-service';
 import { parseHTML } from 'linkedom';
@@ -172,7 +173,12 @@ const emailService = {
 			attachments
 		} = params;
 
-		const { resendTokens, r2Domain, send } = await settingService.query(c);
+		const { resendTokens, r2Domain, send, sendDomainList = [], domainList = [] } = await settingService.query(c);
+
+		const resendTokensMap = Object.keys(resendTokens || {}).reduce((acc, key) => {
+			acc[key.toLowerCase()] = resendTokens[key];
+			return acc;
+		}, {});
 
 		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
 
@@ -182,12 +188,13 @@ const emailService = {
 
 		const userRow = await userService.selectById(c, userId);
 		const roleRow = await roleService.selectById(c, userRow.type);
+		const isAdminUser = c.env.admin === userRow.email;
 
-		if (c.env.admin !== userRow.email && roleRow.sendType === 'ban') {
+		if (!isAdminUser && roleRow.sendType === 'ban') {
 			throw new BizError(t('bannedSend'), 403);
 		}
 
-		if (c.env.admin !== userRow.email && roleRow.sendCount) {
+		if (!isAdminUser && roleRow.sendCount) {
 
 			if (userRow.sendCount >= roleRow.sendCount) {
 				if (roleRow.sendType === 'day') throw new BizError(t('daySendLimit'), 403);
@@ -233,16 +240,39 @@ const emailService = {
 			throw new BizError(t('sendEmailNotCurUser'));
 		}
 
-		if (c.env.admin !== userRow.email) {
+		let finalSendEmail = (params.sendEmail || accountRow.email || '').trim();
 
-			if(!roleService.hasAvailDomainPerm(roleRow.availDomain, accountRow.email)) {
+		if (!verifyUtils.isEmail(finalSendEmail)) {
+			throw new BizError(t('notEmail'));
+		}
+
+		if (!isAdminUser && finalSendEmail.toLowerCase() !== accountRow.email.toLowerCase()) {
+			throw new BizError(t('sendEmailNotCurUser'));
+		}
+
+		const finalDomain = emailUtils.getDomain(finalSendEmail).toLowerCase();
+		const domainTag = '@' + finalDomain;
+
+		if (!isAdminUser) {
+
+			if(!roleService.hasAvailDomainPerm(roleRow.availDomain, finalSendEmail)) {
 				throw new BizError(t('noDomainPermSend'),403)
 			}
 
 		}
 
-		const domain = emailUtils.getDomain(accountRow.email);
-		const resendToken = resendTokens[domain];
+		const sendDomainLowerSet = new Set((sendDomainList || []).map(item => item.toLowerCase()));
+		const domainListLowerSet = new Set(domainList.map(item => item.toLowerCase()));
+
+		if (sendDomainLowerSet.size > 0) {
+			if (!sendDomainLowerSet.has(domainTag.toLowerCase())) {
+				throw new BizError(t('noResendToken'));
+			}
+		} else if (!domainListLowerSet.has(domainTag.toLowerCase())) {
+			throw new BizError(t('noResendToken'));
+		}
+
+		const resendToken = resendTokensMap[finalDomain];
 
 		if (!resendToken) {
 			throw new BizError(t('noResendToken'));
@@ -250,7 +280,7 @@ const emailService = {
 
 
 		if (!name) {
-			name = emailUtils.getName(accountRow.email);
+			name = emailUtils.getName(finalSendEmail);
 		}
 
 		let emailRow = {
@@ -278,7 +308,7 @@ const emailService = {
 
 			receiveEmail.forEach(email => {
 				const sendForm = {
-					from: `${name} <${accountRow.email}>`,
+					from: `${name} <${finalSendEmail}>`,
 					to: [email],
 					subject: subject,
 					text: text,
@@ -300,7 +330,7 @@ const emailService = {
 		} else {
 
 			const sendForm = {
-				from: `${name} <${accountRow.email}>`,
+				from: `${name} <${finalSendEmail}>`,
 				to: [...receiveEmail],
 				subject: subject,
 				text: text,
@@ -332,7 +362,7 @@ const emailService = {
 		html = this.imgReplace(html, imageDataList, r2Domain);
 
 		const emailData = {};
-		emailData.sendEmail = accountRow.email;
+		emailData.sendEmail = finalSendEmail;
 		emailData.name = name;
 		emailData.subject = subject;
 		emailData.content = html;

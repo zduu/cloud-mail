@@ -19,6 +19,29 @@ const settingService = {
 		} catch (e) {
 			settingRow.loginDomainList = [];
 		}
+		let domainList = c.env.domain;
+
+		if (typeof domainList === 'string') {
+			try {
+				domainList = JSON.parse(domainList)
+			} catch (error) {
+				throw new BizError(t('notJsonDomain'));
+			}
+		}
+
+		if (!c.env.domain) {
+			throw new BizError(t('noDomainVariable'));
+		}
+
+		domainList = domainList.map(item => '@' + item);
+		settingRow.domainList = domainList;
+
+		const validLoginDomainList = settingRow.loginDomainList.filter(item => domainList.includes(item));
+		settingRow.loginDomainList = validLoginDomainList;
+
+		const resendDomainSet = new Set(Object.keys(settingRow.resendTokens || {}).map(domain => domain.toLowerCase()));
+		settingRow.sendDomainList = domainList.filter(item => resendDomainSet.has(item.replace(/^@/, '').toLowerCase()));
+
 		c.set('setting', settingRow);
 		await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
 	},
@@ -78,6 +101,9 @@ const settingService = {
 
 		const validLoginDomainList = settingRow.loginDomainList.filter(item => domainList.includes(item));
 		settingRow.loginDomainList = validLoginDomainList;
+
+		const resendDomainSet = new Set(Object.keys(settingRow.resendTokens || {}).map(domain => domain.toLowerCase()));
+		settingRow.sendDomainList = domainList.filter(item => resendDomainSet.has(item.replace(/^@/, '').toLowerCase()));
 
 
 		let linuxdoSwitch = c.env.linuxdo_switch;
@@ -245,6 +271,7 @@ const settingService = {
 			loginOpacity: settingRow.loginOpacity,
 			domainList: settingRow.domainList,
 			loginDomainList,
+			sendDomainList: settingRow.sendDomainList,
 			regKey: settingRow.regKey,
 			regVerifyOpen: settingRow.regVerifyOpen,
 			addVerifyOpen: settingRow.addVerifyOpen,
