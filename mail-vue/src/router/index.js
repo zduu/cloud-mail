@@ -51,6 +51,16 @@ const routes = [
                     menu: true
                 }
             },
+            {
+                path: '/preview-manage',
+                name: 'preview-manage',
+                component: () => import('@/views/preview-manage/index.vue'),
+                meta: {
+                    title: 'previewMailbox',
+                    name: 'preview-manage',
+                    menu: true
+                }
+            },
         ]
 
     },
@@ -58,6 +68,14 @@ const routes = [
         path: '/login',
         name: 'login',
         component: () => import('@/views/login/index.vue')
+    },
+    {
+        path: '/preview/mail/:token',
+        name: 'preview-page',
+        component: () => import('@/views/preview/public.vue'),
+        meta: {
+            public: true
+        }
     },
     {
         path: '/test',
@@ -97,8 +115,9 @@ router.beforeEach((to, from, next) => {
     }, first ? 200 : 100)
 
     const token = localStorage.getItem('token')
+    const isPublic = to.meta?.public
 
-    if (!token && to.name !== 'login') {
+    if (!token && !isPublic && to.name !== 'login') {
         return next({name: 'login'})
     }
 

@@ -118,5 +118,15 @@ const routers = {
             name: 'analysis',
             menu: true
         }
+    }],
+    'preview:manage': [{
+        path: '/preview-manage',
+        name: 'preview-manage',
+        component: () => import('@/views/preview-manage/index.vue'),
+        meta: {
+            title: 'previewMailbox',
+            name: 'preview-manage',
+            menu: true
+        }
     }]
 }
