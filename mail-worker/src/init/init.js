@@ -69,12 +69,19 @@ const init = {
 					email TEXT NOT NULL,
 					token TEXT NOT NULL,
 					account_id INTEGER NOT NULL,
+					expire_time TEXT,
 					create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
 				)
 			`).run();
 			await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_preview_token ON preview(token);`).run();
 		} catch (e) {
 			console.error(e)
+		}
+
+		try {
+			await c.env.db.prepare(`ALTER TABLE preview ADD COLUMN expire_time TEXT;`).run();
+		} catch (e) {
+			console.warn(`跳过字段，原因：${e.message}`);
 		}
 
 		const { total } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview:manage'`).first();
@@ -568,6 +575,7 @@ const init = {
         email TEXT NOT NULL,
         token TEXT NOT NULL,
         account_id INTEGER NOT NULL,
+        expire_time TEXT,
         create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
       )
     `).run();

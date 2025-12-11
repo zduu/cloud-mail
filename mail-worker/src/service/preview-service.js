@@ -11,6 +11,7 @@ import emailService from './email-service';
 import { emailConst, isDel } from '../const/entity-const';
 import { t } from '../i18n/i18n';
 import { desc, eq } from 'drizzle-orm';
+import dayjs from 'dayjs';
 
 const previewService = {
 
@@ -18,7 +19,7 @@ const previewService = {
 
 		await this.ensureAdmin(c, userId);
 
-		let { email } = params;
+		let { email, expireTime } = params;
 		email = (email || '').trim().toLowerCase();
 
 		if (!verifyUtils.isEmail(email)) {
@@ -54,12 +55,22 @@ const previewService = {
 			accountRow = await accountService.selectByEmailIncludeDel(c, email);
 		}
 
+		let expireTimeVal = null;
+		if (expireTime) {
+			const time = dayjs(expireTime);
+			if (!time.isValid()) {
+				throw new BizError(t('previewExpireInvalid'));
+			}
+			expireTimeVal = time.utc().format('YYYY-MM-DD HH:mm:ss');
+		}
+
 		const token = await this.genToken(c);
 
 		return await orm(c).insert(preview).values({
 			email,
 			token,
-			accountId: accountRow.accountId
+			accountId: accountRow.accountId,
+			expireTime: expireTimeVal
 		}).returning().get();
 	},
 
@@ -74,6 +85,24 @@ const previewService = {
 		await orm(c).delete(preview).where(eq(preview.previewId, Number(previewId))).run();
 	},
 
+	async updateExpire(c, params, userId) {
+		await this.ensureAdmin(c, userId);
+		const { previewId, days } = params;
+
+		let expireTime = null;
+		if (days !== null && days !== undefined && days !== '') {
+			const num = Number(days);
+			if (Number.isNaN(num) || num <= 0) {
+				throw new BizError(t('previewExpireInvalid'));
+			}
+			expireTime = dayjs.utc().add(num, 'day').format('YYYY-MM-DD HH:mm:ss');
+		}
+
+		await orm(c).update(preview).set({ expireTime }).where(eq(preview.previewId, Number(previewId))).run();
+		const row = await orm(c).select().from(preview).where(eq(preview.previewId, Number(previewId))).get();
+		return row;
+	},
+
 	async selectByToken(c, token) {
 		if (!token) return null;
 		return orm(c).select().from(preview).where(eq(preview.token, token)).get();
@@ -86,6 +115,10 @@ const previewService = {
 		const previewRow = await this.selectByToken(c, token);
 		if (!previewRow) {
 			throw new BizError(t('previewInvalidToken'), 404);
+		}
+
+		if (previewRow.expireTime && dayjs.utc().isAfter(dayjs.utc(previewRow.expireTime))) {
+			throw new BizError(t('previewExpired'), 403);
 		}
 
 		const accountRow = await accountService.selectById(c, previewRow.accountId);

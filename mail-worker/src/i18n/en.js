@@ -70,6 +70,8 @@ const en = {
 	previewInvalidToken: 'Preview link is invalid or expired',
 	previewAccountNotExist: 'Preview mailbox does not exist or was deleted',
 	adminNotExist: 'Admin account is missing, please initialize admin first',
+	previewExpired: 'Preview link has expired',
+	previewExpireInvalid: 'Invalid expiration time',
 	perms: {
 		"邮件": "Email",
 		"邮件发送": "Send Email",

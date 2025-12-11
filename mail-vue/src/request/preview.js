@@ -4,8 +4,12 @@ export function previewList() {
     return http.get('/preview/list');
 }
 
-export function previewCreate(email) {
-    return http.post('/preview/create', { email });
+export function previewCreate(email, expireTime = null) {
+    return http.post('/preview/create', { email, expireTime });
+}
+
+export function previewExpire(previewId, days) {
+    return http.put('/preview/expire', { previewId, days });
 }
 
 export function previewDelete(previewId) {

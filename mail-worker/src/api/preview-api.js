@@ -18,6 +18,11 @@ app.delete('/preview/delete', async (c) => {
 	return c.json(result.ok());
 });
 
+app.put('/preview/expire', async (c) => {
+	const row = await previewService.updateExpire(c, await c.req.json(), userContext.getUserId(c));
+	return c.json(result.ok(row));
+});
+
 app.get('/preview/page/list', async (c) => {
 	const data = await previewService.pageList(c, c.req.query());
 	return c.json(result.ok(data));

@@ -70,6 +70,8 @@ const zh = {
 	previewInvalidToken: '预览链接已失效',
 	previewAccountNotExist: '预览邮箱不存在或已被删除',
 	adminNotExist: '管理员账号不存在，请先初始化管理员',
+	previewExpired: '预览链接已过期',
+	previewExpireInvalid: '无效的过期时间',
 	perms: {
 		"邮件": "邮件",
 		"邮件发送": "邮件发送",

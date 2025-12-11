@@ -6,6 +6,7 @@ export const preview = sqliteTable('preview', {
 	email: text('email').notNull(),
 	token: text('token').notNull(),
 	accountId: integer('account_id').notNull(),
+	expireTime: text('expire_time'),
 	createTime: text('create_time').default(sql`CURRENT_TIMESTAMP`).notNull()
 });
 

@@ -32,10 +32,34 @@
             <div class="preview-link">{{ previewLink(scope.row) }}</div>
           </template>
         </el-table-column>
+        <el-table-column :label="$t('expireTime')" min-width="200">
+          <template #default="scope">
+            <div v-if="scope.row.expireTime">
+              <div class="expire-status">{{ expireDesc(scope.row) }}</div>
+              <div class="expire-time">{{ localExpireTime(scope.row) }}</div>
+            </div>
+            <div v-else>{{ $t('permanent') }}</div>
+          </template>
+        </el-table-column>
         <el-table-column prop="createTime" :label="$t('createTime')" min-width="140"/>
-        <el-table-column :label="$t('action')" width="180">
+        <el-table-column :label="$t('action')" width="260">
           <template #default="scope">
             <el-button type="primary" link @click="copy(scope.row)">{{ $t('copyLink') }}</el-button>
+            <el-popover placement="top" trigger="click" width="240">
+              <template #reference>
+                <el-button type="primary" link>{{ $t('expireTime') }}</el-button>
+              </template>
+              <div class="expire-pop">
+                <el-input-number v-model="scope.row._days" :min="1" :step="1" :placeholder="$t('days')" />
+                <div class="expire-btns">
+                  <el-button size="small" @click="setExpire(scope.row)">{{ $t('save') }}</el-button>
+                  <el-button size="small" type="warning" @click="setExpire(scope.row, true)">{{ $t('permanent') }}</el-button>
+                </div>
+                <div class="expire-tip" v-if="scope.row.expireTime">
+                  {{ $t('currentExpire') }}: {{ localExpireTime(scope.row) }}
+                </div>
+              </div>
+            </el-popover>
             <el-button type="danger" link @click="removeRow(scope.row)">{{ $t('delete') }}</el-button>
           </template>
         </el-table-column>
@@ -46,11 +70,15 @@
 
 <script setup>
 import {onMounted, reactive, ref, computed, watch} from "vue";
-import {previewList, previewCreate, previewDelete} from "@/request/preview.js";
+import {previewList, previewCreate, previewDelete, previewExpire} from "@/request/preview.js";
 import {useSettingStore} from "@/store/setting.js";
 import {useI18n} from "vue-i18n";
 import {Icon} from "@iconify/vue";
 import {isEmail} from "@/utils/verify-utils.js";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
 
 const settingStore = useSettingStore();
 const {t} = useI18n();
@@ -82,6 +110,7 @@ async function load() {
   loading.value = true;
   try {
     data.value = await previewList();
+    data.value.forEach(row => row._days = null);
   } finally {
     loading.value = false;
   }
@@ -120,7 +149,8 @@ async function create() {
   }
 
   creating.value = true;
-  previewCreate(email).then(row => {
+  previewCreate(email, null).then(row => {
+    row._days = null;
     data.value.unshift(row);
     form.prefix = '';
     ElMessage({
@@ -154,6 +184,38 @@ async function copy(row) {
   }
 }
 
+async function setExpire(row, setPermanent = false) {
+  if (setPermanent) {
+    await previewExpire(row.previewId, null);
+    row.expireTime = null;
+    row._days = null;
+    ElMessage({
+      message: t('saveSuccessMsg'),
+      type: 'success',
+      plain: true
+    });
+    return;
+  }
+
+  const days = Number(row._days);
+  if (!days || days <= 0) {
+    ElMessage({
+      message: t('previewExpireInvalid'),
+      type: 'error',
+      plain: true
+    });
+    return;
+  }
+
+  const res = await previewExpire(row.previewId, days);
+  row.expireTime = res.expireTime;
+  ElMessage({
+    message: t('saveSuccessMsg'),
+    type: 'success',
+    plain: true
+  });
+}
+
 function removeRow(row) {
   ElMessageBox.confirm(t('delConfirm', {msg: row.email}), {
     confirmButtonText: t('confirm'),
@@ -169,6 +231,18 @@ function removeRow(row) {
       });
     });
   });
+}
+
+function expireDesc(row) {
+  if (!row.expireTime) return t('permanent');
+  const diff = dayjs.utc(row.expireTime).diff(dayjs.utc(), 'day', true);
+  if (diff <= 0) return t('expired');
+  return t('expireInDays', { days: Math.ceil(diff) });
+}
+
+function localExpireTime(row) {
+  if (!row.expireTime) return '';
+  return dayjs.utc(row.expireTime).local().format('YYYY-MM-DD HH:mm:ss');
 }
 </script>
 
@@ -222,5 +296,31 @@ function removeRow(row) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.expire-pop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expire-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.expire-tip {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.expire-status {
+  font-weight: 600;
+}
+
+.expire-time {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 </style>
