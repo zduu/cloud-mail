@@ -26,7 +26,11 @@
         </div>
       </div>
       <el-table :data="data" v-loading="loading" height="520" style="width: 100%">
-        <el-table-column prop="email" :label="$t('emailAccount')" min-width="160"/>
+        <el-table-column prop="email" :label="$t('emailAccount')" min-width="160">
+          <template #default="scope">
+            <a :href="previewLink(scope.row)" target="_blank" class="email-link">{{ scope.row.email }}</a>
+          </template>
+        </el-table-column>
         <el-table-column :label="$t('previewLink')" min-width="220">
           <template #default="scope">
             <div class="preview-link">{{ previewLink(scope.row) }}</div>
@@ -322,5 +326,17 @@ function localExpireTime(row) {
 .expire-time {
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+.email-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.email-link:hover {
+  color: var(--el-color-primary-light-3);
+  text-decoration: underline;
 }
 </style>

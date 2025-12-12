@@ -27,6 +27,7 @@ const init = {
 		await this.v2_5DB(c);
 		await this.v2_6DB(c);
 		await this.v2_7DB(c);
+		await this.v2_8DB(c);
 		await settingService.refresh(c);
 		return c.text(t('initSuccess'));
 	},
@@ -88,6 +89,16 @@ const init = {
 		if (total === 0) {
 			await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮箱', 'preview:manage', 17, 2, 3)`).run();
 		}
+	},
+
+	async v2_8DB(c) {
+
+		try {
+			await c.env.db.prepare(`ALTER TABLE account ADD COLUMN is_preview INTEGER NOT NULL DEFAULT 0;`).run();
+		} catch (e) {
+			console.warn(`跳过字段，原因：${e.message}`);
+		}
+
 	},
 
 	async v2_4DB(c) {

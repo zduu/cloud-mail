@@ -58,6 +58,10 @@ const accountService = {
 			throw new BizError(t('isDelAccount'));
 		}
 
+		if (accountRow && accountRow.isPreview === 1) {
+			throw new BizError(t('previewEmailConflict'));
+		}
+
 		if (accountRow) {
 			throw new BizError(t('isRegAccount'));
 		}
@@ -126,6 +130,7 @@ const accountService = {
 			and(
 				eq(account.userId, userId),
 				eq(account.isDel, isDel.NORMAL),
+				eq(account.isPreview, 0),
 				gt(account.accountId, accountId)))
 			.orderBy(asc(account.accountId))
 			.limit(size)

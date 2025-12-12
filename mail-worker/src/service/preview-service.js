@@ -48,11 +48,13 @@ const previewService = {
 			accountRow = await orm(c).insert(account).values({
 				email,
 				userId: adminUser.userId,
-				name: emailUtils.getName(email)
+				name: emailUtils.getName(email),
+				isPreview: 1
 			}).returning().get();
 		} else if (accountRow.isDel === isDel.DELETE) {
 			await accountService.restoreByEmail(c, email);
 			accountRow = await accountService.selectByEmailIncludeDel(c, email);
+			await orm(c).update(account).set({ isPreview: 1 }).where(eq(account.accountId, accountRow.accountId)).run();
 		}
 
 		let expireTimeVal = null;

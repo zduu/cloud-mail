@@ -67,6 +67,7 @@ const en = {
 	emailExistDatabase: 'Email already exists in the database',
 	notConfigOss: 'Object storage not configured',
 	previewEmailUsed: 'Mailbox is owned by another user, cannot create preview',
+	previewEmailConflict: 'This mailbox is used as a preview mailbox and cannot be added as a regular account',
 	previewInvalidToken: 'Preview link is invalid or expired',
 	previewAccountNotExist: 'Preview mailbox does not exist or was deleted',
 	adminNotExist: 'Admin account is missing, please initialize admin first',
