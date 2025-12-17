@@ -1,5 +1,6 @@
 import orm from '../entity/orm';
 import email from '../entity/email';
+import account from '../entity/account';
 import { attConst, emailConst, isDel, settingConst } from '../const/entity-const';
 import { and, desc, eq, gt, inArray, lt, count, asc, sql, ne, or, like, lte, gte } from 'drizzle-orm';
 import { star } from '../entity/star';
@@ -7,6 +8,7 @@ import settingService from './setting-service';
 import accountService from './account-service';
 import BizError from '../error/biz-error';
 import emailUtils from '../utils/email-utils';
+import verifyUtils from '../utils/verify-utils';
 import { Resend } from 'resend';
 import attService from './att-service';
 import { parseHTML } from 'linkedom';
@@ -24,12 +26,13 @@ const emailService = {
 
 	async list(c, params, userId) {
 
-		let { emailId, type, accountId, size, timeSort } = params;
+		let { emailId, type, accountId, size, timeSort, allAccount } = params;
 
 		size = Number(size);
 		emailId = Number(emailId);
 		timeSort = Number(timeSort);
 		accountId = Number(accountId);
+		const includeAllAccount = allAccount === true || allAccount === 'true' || Number(allAccount) === 1;
 
 		if (size > 30) {
 			size = 30;
@@ -46,11 +49,26 @@ const emailService = {
 		}
 
 
+		const baseSelect = {
+			...email,
+			starId: star.starId,
+			accountEmail: account.email,
+			accountName: account.name
+		}
+
+		const listConditions = [
+			eq(email.userId, userId),
+			timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId),
+			eq(email.type, type),
+			eq(email.isDel, isDel.NORMAL)
+		]
+
+		if (!includeAllAccount) {
+			listConditions.push(eq(email.accountId, accountId));
+		}
+
 		const query = orm(c)
-			.select({
-				...email,
-				starId: star.starId
-			})
+			.select(baseSelect)
 			.from(email)
 			.leftJoin(
 				star,
@@ -59,15 +77,8 @@ const emailService = {
 					eq(star.userId, userId)
 				)
 			)
-			.where(
-				and(
-					eq(email.userId, userId),
-					eq(email.accountId, accountId),
-					timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId),
-					eq(email.type, type),
-					eq(email.isDel, isDel.NORMAL)
-				)
-			);
+			.leftJoin(account, eq(account.accountId, email.accountId))
+			.where(and(...listConditions));
 
 		if (timeSort) {
 			query.orderBy(asc(email.emailId));
@@ -77,22 +88,32 @@ const emailService = {
 
 		const listQuery = query.limit(size).all();
 
+		const totalConditions = [
+			eq(email.userId, userId),
+			eq(email.type, type),
+			eq(email.isDel, isDel.NORMAL)
+		]
+
+		if (!includeAllAccount) {
+			totalConditions.push(eq(email.accountId, accountId));
+		}
+
 		const totalQuery = orm(c).select({ total: count() }).from(email).where(
-			and(
-				eq(email.accountId, accountId),
-				eq(email.userId, userId),
-				eq(email.type, type),
-				eq(email.isDel, isDel.NORMAL)
-			)
+			and(...totalConditions)
 		).get();
 
+		const latestConditions = [
+			eq(email.userId, userId),
+			eq(email.type, type),
+			eq(email.isDel, isDel.NORMAL)
+		]
+
+		if (!includeAllAccount) {
+			latestConditions.push(eq(email.accountId, accountId));
+		}
+
 		const latestEmailQuery = orm(c).select().from(email).where(
-			and(
-				eq(email.accountId, accountId),
-				eq(email.userId, userId),
-				eq(email.type, type),
-				eq(email.isDel, isDel.NORMAL)
-			))
+			and(...latestConditions))
 			.orderBy(desc(email.emailId)).limit(1).get();
 
 		let [list, totalRow, latestEmail] = await Promise.all([listQuery, totalQuery, latestEmailQuery]);
@@ -114,7 +135,7 @@ const emailService = {
 		if (!latestEmail) {
 			latestEmail = {
 				emailId: 0,
-				accountId: accountId,
+				accountId: includeAllAccount ? 0 : accountId,
 				userId: userId,
 			}
 		}
@@ -152,7 +173,12 @@ const emailService = {
 			attachments
 		} = params;
 
-		const { resendTokens, r2Domain, send } = await settingService.query(c);
+		const { resendTokens, r2Domain, send, sendDomainList = [], domainList = [] } = await settingService.query(c);
+
+		const resendTokensMap = Object.keys(resendTokens || {}).reduce((acc, key) => {
+			acc[key.toLowerCase()] = resendTokens[key];
+			return acc;
+		}, {});
 
 		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
 
@@ -162,12 +188,13 @@ const emailService = {
 
 		const userRow = await userService.selectById(c, userId);
 		const roleRow = await roleService.selectById(c, userRow.type);
+		const isAdminUser = c.env.admin === userRow.email;
 
-		if (c.env.admin !== userRow.email && roleRow.sendType === 'ban') {
+		if (!isAdminUser && roleRow.sendType === 'ban') {
 			throw new BizError(t('bannedSend'), 403);
 		}
 
-		if (c.env.admin !== userRow.email && roleRow.sendCount) {
+		if (!isAdminUser && roleRow.sendCount) {
 
 			if (userRow.sendCount >= roleRow.sendCount) {
 				if (roleRow.sendType === 'day') throw new BizError(t('daySendLimit'), 403);
@@ -213,16 +240,39 @@ const emailService = {
 			throw new BizError(t('sendEmailNotCurUser'));
 		}
 
-		if (c.env.admin !== userRow.email) {
+		let finalSendEmail = (params.sendEmail || accountRow.email || '').trim();
 
-			if(!roleService.hasAvailDomainPerm(roleRow.availDomain, accountRow.email)) {
+		if (!verifyUtils.isEmail(finalSendEmail)) {
+			throw new BizError(t('notEmail'));
+		}
+
+		if (!isAdminUser && finalSendEmail.toLowerCase() !== accountRow.email.toLowerCase()) {
+			throw new BizError(t('sendEmailNotCurUser'));
+		}
+
+		const finalDomain = emailUtils.getDomain(finalSendEmail).toLowerCase();
+		const domainTag = '@' + finalDomain;
+
+		if (!isAdminUser) {
+
+			if(!roleService.hasAvailDomainPerm(roleRow.availDomain, finalSendEmail)) {
 				throw new BizError(t('noDomainPermSend'),403)
 			}
 
 		}
 
-		const domain = emailUtils.getDomain(accountRow.email);
-		const resendToken = resendTokens[domain];
+		const sendDomainLowerSet = new Set((sendDomainList || []).map(item => item.toLowerCase()));
+		const domainListLowerSet = new Set(domainList.map(item => item.toLowerCase()));
+
+		if (sendDomainLowerSet.size > 0) {
+			if (!sendDomainLowerSet.has(domainTag.toLowerCase())) {
+				throw new BizError(t('noResendToken'));
+			}
+		} else if (!domainListLowerSet.has(domainTag.toLowerCase())) {
+			throw new BizError(t('noResendToken'));
+		}
+
+		const resendToken = resendTokensMap[finalDomain];
 
 		if (!resendToken) {
 			throw new BizError(t('noResendToken'));
@@ -230,7 +280,7 @@ const emailService = {
 
 
 		if (!name) {
-			name = emailUtils.getName(accountRow.email);
+			name = emailUtils.getName(finalSendEmail);
 		}
 
 		let emailRow = {
@@ -258,7 +308,7 @@ const emailService = {
 
 			receiveEmail.forEach(email => {
 				const sendForm = {
-					from: `${name} <${accountRow.email}>`,
+					from: `${name} <${finalSendEmail}>`,
 					to: [email],
 					subject: subject,
 					text: text,
@@ -280,7 +330,7 @@ const emailService = {
 		} else {
 
 			const sendForm = {
-				from: `${name} <${accountRow.email}>`,
+				from: `${name} <${finalSendEmail}>`,
 				to: [...receiveEmail],
 				subject: subject,
 				text: text,
@@ -312,7 +362,7 @@ const emailService = {
 		html = this.imgReplace(html, imageDataList, r2Domain);
 
 		const emailData = {};
-		emailData.sendEmail = accountRow.email;
+		emailData.sendEmail = finalSendEmail;
 		emailData.name = name;
 		emailData.subject = subject;
 		emailData.content = html;
@@ -445,15 +495,32 @@ const emailService = {
 	},
 
 	async latest(c, params, userId) {
-		let { emailId, accountId } = params;
-		const list = await orm(c).select().from(email).where(
-			and(
-				eq(email.userId, userId),
-				eq(email.isDel, isDel.NORMAL),
-				eq(email.accountId, accountId),
-				eq(email.type, emailConst.type.RECEIVE),
-				gt(email.emailId, emailId)
-			))
+		let { emailId, accountId, allAccount } = params;
+
+		emailId = Number(emailId);
+		accountId = Number(accountId);
+		const includeAllAccount = allAccount === true || allAccount === 'true' || Number(allAccount) === 1;
+
+		const conditions = [
+			eq(email.userId, userId),
+			eq(email.isDel, isDel.NORMAL),
+			eq(email.type, emailConst.type.RECEIVE),
+			gt(email.emailId, emailId)
+		]
+
+		if (!includeAllAccount) {
+			conditions.push(eq(email.accountId, accountId));
+		}
+
+		const list = await orm(c).select({
+			...email,
+			accountEmail: account.email,
+			accountName: account.name,
+			starId: star.starId
+		}).from(email)
+			.leftJoin(account, eq(account.accountId, email.accountId))
+			.leftJoin(star, and(eq(star.emailId, email.emailId), eq(star.userId, userId)))
+			.where(and(...conditions))
 			.orderBy(desc(email.emailId))
 			.limit(20);
 
@@ -466,6 +533,7 @@ const emailService = {
 			list.forEach(emailRow => {
 				const atts = attsList.filter(attsRow => attsRow.emailId === emailRow.emailId);
 				emailRow.attList = atts;
+				emailRow.isStar = emailRow.starId != null ? 1 : 0;
 			});
 		}
 

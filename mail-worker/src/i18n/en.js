@@ -66,6 +66,13 @@ const en = {
 	notAdmin: 'The entered email is not an administrator email',
 	emailExistDatabase: 'Email already exists in the database',
 	notConfigOss: 'Object storage not configured',
+	previewEmailUsed: 'Mailbox is owned by another user, cannot create preview',
+	previewEmailConflict: 'This mailbox is used as a preview mailbox and cannot be added as a regular account',
+	previewInvalidToken: 'Preview link is invalid or expired',
+	previewAccountNotExist: 'Preview mailbox does not exist or was deleted',
+	adminNotExist: 'Admin account is missing, please initialize admin first',
+	previewExpired: 'Preview link has expired',
+	previewExpireInvalid: 'Invalid expiration time',
 	perms: {
 		"邮件": "Email",
 		"邮件发送": "Send Email",

@@ -2,6 +2,7 @@ import settingService from '../service/setting-service';
 import emailUtils from '../utils/email-utils';
 import {emailConst} from "../const/entity-const";
 import { t } from '../i18n/i18n'
+import { setSchemaVersion } from './schema-migrate';
 
 const init = {
 	async init(c) {
@@ -25,7 +26,11 @@ const init = {
 		await this.v2_3DB(c);
 		await this.v2_4DB(c);
 		await this.v2_5DB(c);
+		await this.v2_6DB(c);
+		await this.v2_7DB(c);
+		await this.v2_8DB(c);
 		await settingService.refresh(c);
+		await setSchemaVersion(c);
 		return c.text(t('initSuccess'));
 	},
 
@@ -44,6 +49,56 @@ const init = {
 			]);
 		} catch (e) {
 			console.error(e)
+		}
+
+	},
+
+	async v2_6DB(c) {
+
+		try {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN login_domain_list TEXT NOT NULL DEFAULT '[]';`).run();
+		} catch (e) {
+			console.error(e)
+		}
+
+	},
+
+	async v2_7DB(c) {
+
+		try {
+			await c.env.db.prepare(`
+				CREATE TABLE IF NOT EXISTS preview (
+					preview_id INTEGER PRIMARY KEY AUTOINCREMENT,
+					email TEXT NOT NULL,
+					token TEXT NOT NULL,
+					account_id INTEGER NOT NULL,
+					expire_time TEXT,
+					create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+				)
+			`).run();
+			await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_preview_token ON preview(token);`).run();
+		} catch (e) {
+			console.error(e)
+		}
+
+		try {
+			await c.env.db.prepare(`ALTER TABLE preview ADD COLUMN expire_time TEXT;`).run();
+		} catch (e) {
+			console.warn(`跳过字段，原因：${e.message}`);
+		}
+
+		const { total } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview:manage'`).first();
+		if (total === 0) {
+			await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮箱', 'preview:manage', 17, 2, 3)`).run();
+		}
+	},
+
+	async v2_8DB(c) {
+
+		try {
+			await c.env.db.prepare(`ALTER TABLE account ADD COLUMN is_preview INTEGER NOT NULL DEFAULT 0;`).run();
+		} catch (e) {
+			console.warn(`跳过字段，原因：${e.message}`);
 		}
 
 	},
@@ -396,7 +451,8 @@ const init = {
         (27, '邮件列表', '', 0, 1, 4),
         (28, '邮件查看', 'all-email:query', 27, 2, 0),
         (29, '邮件删除', 'all-email:delete', 27, 2, 0),
-				(30, '身份添加', 'role:add', 13, 2, -1)
+				(30, '身份添加', 'role:add', 13, 2, -1),
+				(31, '预览邮箱', 'preview:manage', 17, 2, 3)
       `).run();
 		}
 
@@ -525,6 +581,19 @@ const init = {
         is_del INTEGER DEFAULT 0 NOT NULL
       )
     `).run();
+
+		await c.env.db.prepare(`
+      CREATE TABLE IF NOT EXISTS preview (
+        preview_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        token TEXT NOT NULL,
+        account_id INTEGER NOT NULL,
+        expire_time TEXT,
+        create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )
+    `).run();
+
+		await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_preview_token ON preview(token);`).run();
 
 		await c.env.db.prepare(`
       CREATE TABLE IF NOT EXISTS setting (

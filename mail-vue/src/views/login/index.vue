@@ -193,9 +193,9 @@ const registerForm = reactive({
   confirmPassword: '',
   code: null
 })
-const domainList = settingStore.domainList;
+const domainList = computed(() => settingStore.loginDomainList.length ? settingStore.loginDomainList : settingStore.domainList);
 const registerLoading = ref(false)
-suffix.value = domainList[0]
+suffix.value = domainList.value?.[0] || ''
 const verifyShow = ref(false)
 let verifyToken = ''
 let turnstileId = null
@@ -361,7 +361,11 @@ const submit = () => {
     return
   }
 
-  let email = form.email + (settingStore.settings.loginDomain === 0 ? suffix.value : '');
+  let email = form.email;
+
+  if (settingStore.settings.loginDomain === 0 && !form.email.includes('@')) {
+    email = form.email + (suffix.value || '');
+  }
 
   if (!isEmail(email)) {
     ElMessage({

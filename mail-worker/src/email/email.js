@@ -1,4 +1,4 @@
-import PostalMime from 'postal-mime';
+import PostalMime, { decodeWords } from 'postal-mime';
 import emailService from '../service/email-service';
 import accountService from '../service/account-service';
 import settingService from '../service/setting-service';
@@ -36,15 +36,37 @@ export async function email(message, env, ctx) {
 
 
 		const reader = message.raw.getReader();
-		let content = '';
+		const chunks = [];
+		let totalLength = 0;
 
 		while (true) {
 			const { done, value } = await reader.read();
 			if (done) break;
-			content += new TextDecoder().decode(value);
+			if (value) {
+				const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+				chunks.push(chunk);
+				totalLength += chunk.length;
+			}
 		}
 
-		const email = await PostalMime.parse(content);
+		let content;
+
+		if (chunks.length === 0) {
+			content = new Uint8Array(0);
+		} else if (chunks.length === 1) {
+			content = chunks[0];
+		} else {
+			content = new Uint8Array(totalLength);
+			let offset = 0;
+			for (const chunk of chunks) {
+				content.set(chunk, offset);
+				offset += chunk.length;
+			}
+		}
+
+		let email = await PostalMime.parse(content);
+
+		email = normalizeAddresses(email);
 
 		const account = await accountService.selectByEmailIncludeDel({ env: env }, message.to);
 
@@ -198,6 +220,41 @@ export async function email(message, env, ctx) {
 	} catch (e) {
 
 		console.error('邮件接收异常: ', e);
+	}
+}
+
+function normalizeAddresses(email) {
+
+	const decodeAddr = addr => {
+		if (!addr) return addr;
+		const decoded = { ...addr };
+		if (decoded.address) {
+			decoded.address = safeDecodeWords(decoded.address);
+		}
+		if (decoded.name) {
+			decoded.name = safeDecodeWords(decoded.name);
+		}
+		return decoded;
+	};
+
+	const decodeList = list => Array.isArray(list) ? list.map(decodeAddr) : list;
+
+	return {
+		...email,
+		from: decodeAddr(email.from),
+		to: decodeList(email.to),
+		cc: decodeList(email.cc),
+		bcc: decodeList(email.bcc),
+		replyTo: decodeAddr(email.replyTo),
+	};
+}
+
+function safeDecodeWords(value) {
+	try {
+		return decodeWords(value);
+	} catch (e) {
+		// 解析失败就返回原值，避免中断收信流程
+		return value;
 	}
 }
 

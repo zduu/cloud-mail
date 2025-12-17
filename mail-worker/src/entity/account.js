@@ -9,5 +9,6 @@ export const account = sqliteTable('account', {
 	createTime: text('create_time').default(sql`CURRENT_TIMESTAMP`),
 	userId: integer('user_id').notNull(),
 	isDel: integer('is_del').default(0).notNull(),
+	isPreview: integer('is_preview').default(0).notNull(),
 });
 export default account
