@@ -24,6 +24,28 @@
                              v-model="setting.loginDomain"/>
                 </div>
               </div>
+              <div class="setting-item" v-if="settingStore.domainList.length">
+                <div><span>{{ $t('loginDomainLimit') }}</span></div>
+                <div class="domain-select">
+                  <el-select
+                      v-model="setting.loginDomainList"
+                      multiple
+                      collapse-tags
+                      filterable
+                      clearable
+                      :placeholder="$t('select')"
+                      class="limit-select"
+                      @change="loginDomainLimitChange"
+                  >
+                    <el-option
+                        v-for="item in settingStore.domainList"
+                        :key="item"
+                        :label="item"
+                        :value="item"
+                    />
+                  </el-select>
+                </div>
+              </div>
               <div class="setting-item">
                 <div><span>{{ $t('regKey') }}</span></div>
                 <div>
@@ -863,6 +885,7 @@ function getSettings() {
   settingQuery().then(settingData => {
     setting.value = settingData
     settingStore.domainList = settingData.domainList;
+    settingStore.loginDomainList = settingData.loginDomainList?.length ? settingData.loginDomainList : settingData.domainList;
     resendTokenForm.domain = setting.value.domainList[0]
     loginOpacity.value = setting.value.loginOpacity
     minEmailPrefix.value = setting.value.minEmailPrefix
@@ -1255,6 +1278,11 @@ function saveResendToken() {
   editSetting(settingForm)
 }
 
+function loginDomainLimitChange(value) {
+  const domains = Array.isArray(value) ? value : []
+  editSetting({loginDomainList: domains})
+}
+
 function backupSetting() {
   const settingForm = {...setting.value}
   delete settingForm.resendTokens
@@ -1339,6 +1367,10 @@ function editSetting(settingForm, refreshStatus = true) {
   overflow: hidden;
   background: var(--extra-light-fill) !important;
   position: relative;
+
+  .limit-select {
+    width: 220px;
+  }
 
   .loading {
     display: flex;

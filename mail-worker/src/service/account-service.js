@@ -12,6 +12,7 @@ import turnstileService from './turnstile-service';
 import roleService from './role-service';
 import { t } from '../i18n/i18n';
 import verifyRecordService from './verify-record-service';
+import adminUtils from '../utils/admin-utils';
 
 const accountService = {
 
@@ -39,18 +40,26 @@ const accountService = {
 			throw new BizError(t('notExistDomain'));
 		}
 
-		if (emailUtils.getName(email).length < minEmailPrefix) {
-			throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix } ));
-		}
+		const isAdminEmail = adminUtils.isAdminEmail(c, email);
 
-		if (emailPrefixFilter.some(content => emailUtils.getName(email).includes(content))) {
-			throw new BizError(t('banEmailPrefix'));
+		if (!isAdminEmail) {
+			if (emailUtils.getName(email).length < minEmailPrefix) {
+				throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix } ));
+			}
+
+			if (emailPrefixFilter.some(content => emailUtils.getName(email).includes(content))) {
+				throw new BizError(t('banEmailPrefix'));
+			}
 		}
 
 		let accountRow = await this.selectByEmailIncludeDel(c, email);
 
 		if (accountRow && accountRow.isDel === isDel.DELETE) {
 			throw new BizError(t('isDelAccount'));
+		}
+
+		if (accountRow && accountRow.isPreview === 1) {
+			throw new BizError(t('previewEmailConflict'));
 		}
 
 		if (accountRow) {
@@ -121,6 +130,7 @@ const accountService = {
 			and(
 				eq(account.userId, userId),
 				eq(account.isDel, isDel.NORMAL),
+				eq(account.isPreview, 0),
 				gt(account.accountId, accountId)))
 			.orderBy(asc(account.accountId))
 			.limit(size)

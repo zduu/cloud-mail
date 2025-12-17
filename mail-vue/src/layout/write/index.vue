@@ -6,9 +6,51 @@
           <span class="title-text">
             <Icon icon="hugeicons:quill-write-01" width="28" height="28"/>
           </span>
-          <span class="sender">{{ $t('sender') }}:</span>
-          <span class="sender-name">{{ form.name }}</span>
-          <span class="send-email"><{{ form.sendEmail }}></span>
+          <div class="sender-block">
+            <span class="sender">{{ $t('sender') }}:</span>
+            <div class="sender-choose" v-if="isAdmin">
+              <el-input
+                  v-model="senderPrefix"
+                  size="small"
+                  class="sender-prefix"
+                  :placeholder="$t('senderPrefixPlaceholder')"
+              />
+              <el-select
+                  v-model="senderDomain"
+                  size="small"
+                  class="sender-domain"
+                  :placeholder="$t('senderDomainPlaceholder')"
+                  :no-data-text="$t('senderDomainPlaceholder')"
+              >
+                <el-option
+                    v-for="item in sendDomainList"
+                    :key="item"
+                    :label="item"
+                    :value="item"
+                />
+              </el-select>
+            </div>
+            <div class="sender-choose" v-else>
+              <el-select
+                  v-model="selectedAccountId"
+                  size="small"
+                  filterable
+                  class="sender-account"
+                  :placeholder="$t('senderSelectPlaceholder')"
+              >
+                <el-option
+                    v-for="item in sendableAccounts"
+                    :key="item.accountId"
+                    :label="`${item.name || item.email} <${item.email}>`"
+                    :value="item.accountId"
+                />
+              </el-select>
+            </div>
+          </div>
+          <div class="sender-preview">
+            <span class="sender-name">{{ form.name }}</span>
+            <span class="send-email"><{{ form.sendEmail }}></span>
+          </div>
         </div>
         <div @click="close" style="cursor: pointer;">
           <Icon icon="material-symbols-light:close-rounded" width="22" height="22"/>
@@ -98,7 +140,7 @@
 </template>
 <script setup>
 import tinyEditor from '@/components/tiny-editor/index.vue'
-import {h, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, computed} from "vue";
+import {h, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, computed, watch} from "vue";
 import {Icon} from "@iconify/vue";
 import {useUserStore} from "@/store/user.js";
 import {emailSend} from "@/request/email.js";
@@ -107,6 +149,7 @@ import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
 import {fileToBase64, formatBytes} from "@/utils/file-utils.js";
 import {getIconByName} from "@/utils/icon-utils.js";
+import {accountList} from "@/request/account.js";
 import sendPercent from "@/components/send-percent/index.vue"
 import {toOssDomain} from "@/utils/convert.js";
 import {formatDetailDate} from "@/utils/day.js";
@@ -162,9 +205,39 @@ const form = reactive({
   draftId: null,
 })
 
+const sendAccounts = reactive([])
+const sendAccountsLoaded = ref(false)
+let loadAccountPromise = null
+const selectedAccountId = ref(null)
+const senderPrefix = ref('')
+const senderDomain = ref('')
+const isAdmin = computed(() => userStore.user.permKeys?.includes('*'))
+const sendDomainList = computed(() => {
+  if (settingStore.sendDomainList?.length) {
+    return settingStore.sendDomainList
+  }
+  return settingStore.settings.sendDomainList || []
+})
+const sendDomainSet = computed(() => new Set(sendDomainList.value.map(item => item.toLowerCase())))
+const sendableAccounts = computed(() => {
+  if (sendDomainSet.value.size === 0) {
+    return sendAccounts
+  }
+  return sendAccounts.filter(item => sendDomainSet.value.has(getDomainTag(item.email)))
+})
+
 const selectRecipientList = ref([])
 
 const contacts = computed(() => writerStore.sendRecipientRecord.map(item => ({email: item})))
+
+function getDomainTag(email = '') {
+  const parts = `${email}`.split('@')
+  return parts.length === 2 ? `@${parts[1].toLowerCase()}` : ''
+}
+
+function getEmailPrefix(email = '') {
+  return `${email}`.split('@')[0] || ''
+}
 
 function openContacts() {
   showContacts.value = true
@@ -217,6 +290,146 @@ function selectStatusChange(status) {
   selectStatus = status
   ruleEmailsInputDesc.value = status ? '' : ruleEmailsInputDesc.value = t('ruleEmailsInputDesc')
 }
+
+async function loadSendAccounts() {
+  if (sendAccountsLoaded.value) {
+    return;
+  }
+  if (loadAccountPromise) {
+    return loadAccountPromise;
+  }
+
+  loadAccountPromise = (async () => {
+    let cursor = 0;
+    const size = 30;
+
+    while (true) {
+      const list = await accountList(cursor, size);
+      if (!Array.isArray(list) || list.length === 0) break;
+      sendAccounts.push(...list);
+      if (list.length < size) break;
+      cursor = list[list.length - 1].accountId;
+    }
+
+    sendAccountsLoaded.value = true;
+  })().catch((e) => {
+    console.error(e);
+  }).finally(() => {
+    loadAccountPromise = null;
+  });
+}
+
+function findDefaultAccount(preferSendable = true) {
+  const list = preferSendable ? sendableAccounts.value : sendAccounts;
+  if (!list.length) {
+    return null;
+  }
+  const currentId = accountStore.currentAccount?.accountId || accountStore.currentAccountId;
+  let account = list.find(item => item.accountId === currentId);
+  if (!account) {
+    account = list.find(item => item.accountId === userStore.user.accountId);
+  }
+  return account || list[0];
+}
+
+function applyAccountSender(account) {
+  if (!account) return;
+  form.sendEmail = account.email;
+  form.accountId = account.accountId;
+  form.name = account.name || getEmailPrefix(account.email);
+  selectedAccountId.value = account.accountId;
+}
+
+function updateAdminSendEmail() {
+  if (!isAdmin.value) return;
+  const prefix = senderPrefix.value.trim();
+  const domain = senderDomain.value;
+  if (prefix && domain) {
+    form.sendEmail = `${prefix}${domain}`;
+    form.name = prefix;
+  } else {
+    form.sendEmail = '';
+  }
+}
+
+function applyAdminSender(preferEmail = '') {
+  const defaultAccount = findDefaultAccount(false);
+  form.accountId = defaultAccount?.accountId ?? userStore.user.accountId ?? -1;
+  const baseEmail = preferEmail || defaultAccount?.email || userStore.user.email || '';
+  const domainTag = getDomainTag(baseEmail);
+  senderDomain.value = sendDomainList.value.includes(domainTag) ? domainTag : (sendDomainList.value[0] || domainTag || '');
+  senderPrefix.value = getEmailPrefix(baseEmail);
+  form.name = senderPrefix.value || defaultAccount?.name || form.name;
+  updateAdminSendEmail();
+}
+
+async function prepareSender(preferEmail = '') {
+  await loadSendAccounts();
+
+  if (isAdmin.value) {
+    applyAdminSender(preferEmail || form.sendEmail);
+    if (sendDomainList.value.length === 0) {
+      ElMessage({
+        message: t('noSendableSenderMsg'),
+        type: 'warning',
+        plain: true,
+      });
+    }
+    return;
+  }
+
+  if (sendDomainList.value.length === 0) {
+    ElMessage({
+      message: t('noSendableSenderMsg'),
+      type: 'warning',
+      plain: true,
+    });
+  }
+
+  const preferEmailLower = preferEmail?.toLowerCase();
+  let account = null;
+  if (preferEmailLower) {
+    account = sendableAccounts.value.find(item => item.email.toLowerCase() === preferEmailLower)
+        || sendAccounts.find(item => item.email.toLowerCase() === preferEmailLower);
+  }
+
+  if (!account) {
+    account = findDefaultAccount(true) || findDefaultAccount(false);
+  }
+
+  if (account) {
+    applyAccountSender(account);
+  } else {
+    form.sendEmail = preferEmail || userStore.user.email;
+    form.accountId = userStore.user.accountId;
+    form.name = userStore.user.name || getEmailPrefix(form.sendEmail);
+  }
+
+  const domainTag = getDomainTag(form.sendEmail);
+  if (sendDomainSet.value.size > 0 && !sendDomainSet.value.has(domainTag)) {
+    const fallback = sendableAccounts.value[0];
+    if (fallback) {
+      applyAccountSender(fallback);
+    }
+    ElMessage({
+      message: t('noSendableSenderMsg'),
+      type: 'warning',
+      plain: true,
+    });
+  }
+}
+
+watch([senderPrefix, senderDomain], () => {
+  updateAdminSendEmail();
+});
+
+watch(selectedAccountId, (accountId) => {
+  if (isAdmin.value) return;
+  const account = sendableAccounts.value.find(item => item.accountId === accountId);
+  if (account) {
+    applyAccountSender(account);
+  }
+});
 
 const openSelect = () => {
   mySelect.value.toggleMenu()
@@ -303,6 +516,34 @@ async function sendEmail() {
   if (form.receiveEmail.length === 0) {
     ElMessage({
       message: t('emptyRecipientMsg'),
+      type: 'error',
+      plain: true,
+    })
+    return
+  }
+
+  if (!form.sendEmail || form.accountId === -1) {
+    ElMessage({
+      message: t('senderSelectPlaceholder'),
+      type: 'error',
+      plain: true,
+    })
+    return
+  }
+
+  if (sendDomainList.value.length === 0) {
+    ElMessage({
+      message: t('noSendableSenderMsg'),
+      type: 'error',
+      plain: true,
+    })
+    return
+  }
+
+  const senderDomainTag = getDomainTag(form.sendEmail);
+  if (sendDomainSet.value.size > 0 && !sendDomainSet.value.has(senderDomainTag)) {
+    ElMessage({
+      message: t('noSendableSenderMsg'),
       type: 'error',
       plain: true,
     })
@@ -411,14 +652,21 @@ function addRecipientRecord() {
 }
 
 function resetForm() {
+  form.sendEmail = ''
   form.receiveEmail = []
   form.subject = ''
   form.content = ''
+  form.text = ''
   form.manyType = null
   form.attachments = []
   form.sendType = ''
   form.emailId = 0
   form.draftId = null
+  form.accountId = -1
+  form.name = ''
+  senderPrefix.value = ''
+  senderDomain.value = ''
+  selectedAccountId.value = null
   backReply.content = ''
   backReply.subject = ''
   backReply.receiveEmail = []
@@ -479,16 +727,14 @@ function formatImage(content) {
 }
 
 function open() {
-  if (!accountStore.currentAccount.email) {
-    form.sendEmail = userStore.user.email;
-    form.accountId = userStore.user.accountId;
-    form.name = userStore.user.name;
-  } else {
-    form.sendEmail = accountStore.currentAccount.email;
-    form.accountId = accountStore.currentAccount.accountId;
-    form.name = accountStore.currentAccount.name;
-  }
+  const defaultEmail = accountStore.currentAccount?.email || userStore.user.email;
+  const defaultAccountId = accountStore.currentAccount?.accountId ?? userStore.user.accountId;
+  const defaultName = accountStore.currentAccount?.name || userStore.user.name;
+  form.sendEmail = form.sendEmail || defaultEmail;
+  form.accountId = form.accountId === -1 ? defaultAccountId : form.accountId;
+  form.name = form.name || defaultName;
   show.value = true;
+  prepareSender(form.sendEmail);
   editor.value.focus()
 }
 
@@ -497,6 +743,7 @@ function openDraft(draft) {
   defValue.value = ''
   setTimeout(() => defValue.value = form.content)
   show.value = true;
+  prepareSender(form.sendEmail);
   editor.value.focus()
 }
 
@@ -609,28 +856,58 @@ function close() {
 
       .title-left {
         align-items: center;
-        display: grid;
-        grid-template-columns: auto auto auto 1fr;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
       }
 
       .title-text {
       }
 
-      .sender {
-        margin-left: 8px;
+      .sender { }
+
+      .sender-block {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .sender-choose {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .sender-preview {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
       }
 
       .sender-name {
-        margin-left: 8px;
         font-weight: bold;
       }
 
       .send-email {
         color: #999896;
-        margin-left: 5px;
         white-space: nowrap;
         text-overflow: ellipsis;
         overflow: hidden;
+        max-width: 260px;
+        display: block;
+      }
+
+      .sender-prefix {
+        width: 150px;
+      }
+
+      .sender-domain {
+        width: 160px;
+      }
+
+      .sender-account {
+        min-width: 260px;
       }
 
 

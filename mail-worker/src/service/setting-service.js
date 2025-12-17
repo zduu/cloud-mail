@@ -8,12 +8,63 @@ import constant from '../const/constant';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n'
 import verifyRecordService from './verify-record-service';
+import { ensureSchema } from '../init/schema-migrate';
+
+async function tryEnsureSchema(c) {
+	try {
+		await ensureSchema(c);
+	} catch (e) {
+		console.warn(`schema check failed: ${e.message}`);
+	}
+}
+
+async function loadSettingFromDb(c) {
+	try {
+		return await orm(c).select().from(setting).get();
+	} catch (e) {
+		await tryEnsureSchema(c);
+		return await orm(c).select().from(setting).get();
+	}
+}
 
 const settingService = {
 
 	async refresh(c) {
-		const settingRow = await orm(c).select().from(setting).get();
-		settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
+		await tryEnsureSchema(c);
+		const settingRow = await loadSettingFromDb(c);
+		try {
+			settingRow.resendTokens = JSON.parse(settingRow.resendTokens || '{}');
+		} catch (e) {
+			settingRow.resendTokens = {};
+		}
+		try {
+			settingRow.loginDomainList = JSON.parse(settingRow.loginDomainList || '[]');
+		} catch (e) {
+			settingRow.loginDomainList = [];
+		}
+		let domainList = c.env.domain;
+
+		if (typeof domainList === 'string') {
+			try {
+				domainList = JSON.parse(domainList)
+			} catch (error) {
+				throw new BizError(t('notJsonDomain'));
+			}
+		}
+
+		if (!c.env.domain) {
+			throw new BizError(t('noDomainVariable'));
+		}
+
+		domainList = domainList.map(item => '@' + item);
+		settingRow.domainList = domainList;
+
+		const validLoginDomainList = settingRow.loginDomainList.filter(item => domainList.includes(item));
+		settingRow.loginDomainList = validLoginDomainList;
+
+		const resendDomainSet = new Set(Object.keys(settingRow.resendTokens || {}).map(domain => domain.toLowerCase()));
+		settingRow.sendDomainList = domainList.filter(item => resendDomainSet.has(item.replace(/^@/, '').toLowerCase()));
+
 		c.set('setting', settingRow);
 		await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
 	},
@@ -24,7 +75,37 @@ const settingService = {
 			return c.get('setting')
 		}
 
-		const setting = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
+		await tryEnsureSchema(c);
+
+		let settingRow = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
+
+		// 本地首次启动 KV 可能为空，回落到数据库并刷新 KV
+		if (!settingRow) {
+			settingRow = await loadSettingFromDb(c);
+			if (!settingRow) {
+				throw new BizError(t('initFirst'));
+			}
+			try {
+				// 确保 resendTokens 为对象
+				settingRow.resendTokens = JSON.parse(settingRow.resendTokens || '{}');
+			} catch (e) {
+				settingRow.resendTokens = {};
+			}
+			try {
+				settingRow.loginDomainList = JSON.parse(settingRow.loginDomainList || '[]');
+			} catch (e) {
+				settingRow.loginDomainList = [];
+			}
+			await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
+		}
+
+		if (!Array.isArray(settingRow.loginDomainList)) {
+			try {
+				settingRow.loginDomainList = JSON.parse(settingRow.loginDomainList || '[]');
+			} catch (error) {
+				settingRow.loginDomainList = [];
+			}
+		}
 
 		let domainList = c.env.domain;
 
@@ -41,7 +122,13 @@ const settingService = {
 		}
 
 		domainList = domainList.map(item => '@' + item);
-		setting.domainList = domainList;
+		settingRow.domainList = domainList;
+
+		const validLoginDomainList = settingRow.loginDomainList.filter(item => domainList.includes(item));
+		settingRow.loginDomainList = validLoginDomainList;
+
+		const resendDomainSet = new Set(Object.keys(settingRow.resendTokens || {}).map(domain => domain.toLowerCase()));
+		settingRow.sendDomainList = domainList.filter(item => resendDomainSet.has(item.replace(/^@/, '').toLowerCase()));
 
 
 		let linuxdoSwitch = c.env.linuxdo_switch;
@@ -54,14 +141,14 @@ const settingService = {
 			linuxdoSwitch = false
 		}
 
-		setting.linuxdoClientId = c.env.linuxdo_client_id;
-		setting.linuxdoCallbackUrl = c.env.linuxdo_callback_url;
-		setting.linuxdoSwitch = linuxdoSwitch;
+		settingRow.linuxdoClientId = c.env.linuxdo_client_id;
+		settingRow.linuxdoCallbackUrl = c.env.linuxdo_callback_url;
+		settingRow.linuxdoSwitch = linuxdoSwitch;
 
-		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
+		settingRow.emailPrefixFilter = settingRow.emailPrefixFilter?.split(",").filter(Boolean) ?? [];
 
-		c.set?.('setting', setting);
-		return setting;
+		c.set?.('setting', settingRow);
+		return settingRow;
 	},
 
 	async get(c, showSiteKey = false) {
@@ -113,6 +200,14 @@ const settingService = {
 
 		if (Array.isArray(params.emailPrefixFilter)) {
 			params.emailPrefixFilter = params.emailPrefixFilter + '';
+		}
+
+		if (params.loginDomainList !== undefined) {
+			if (Array.isArray(params.loginDomainList)) {
+				params.loginDomainList = JSON.stringify(params.loginDomainList);
+			} else if (!params.loginDomainList) {
+				params.loginDomainList = '[]';
+			}
 		}
 
 		params.resendTokens = JSON.stringify(resendTokens);
@@ -184,6 +279,7 @@ const settingService = {
 	async websiteConfig(c) {
 
 		const settingRow = await this.get(c, true)
+		const loginDomainList = settingRow.loginDomainList.length > 0 ? settingRow.loginDomainList : settingRow.domainList;
 
 		return {
 			register: settingRow.register,
@@ -199,6 +295,8 @@ const settingService = {
 			background: settingRow.background,
 			loginOpacity: settingRow.loginOpacity,
 			domainList: settingRow.domainList,
+			loginDomainList,
+			sendDomainList: settingRow.sendDomainList,
 			regKey: settingRow.regKey,
 			regVerifyOpen: settingRow.regVerifyOpen,
 			addVerifyOpen: settingRow.addVerifyOpen,
