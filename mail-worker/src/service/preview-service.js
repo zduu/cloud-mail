@@ -10,7 +10,7 @@ import settingService from './setting-service';
 import emailService from './email-service';
 import { emailConst, isDel } from '../const/entity-const';
 import { t } from '../i18n/i18n';
-import { desc, eq } from 'drizzle-orm';
+import { count, desc, eq } from 'drizzle-orm';
 import dayjs from 'dayjs';
 
 const previewService = {
@@ -84,7 +84,24 @@ const previewService = {
 	async remove(c, params, userId) {
 		await this.ensureAdmin(c, userId);
 		const { previewId } = params;
+		const previewRow = await orm(c).select().from(preview).where(eq(preview.previewId, Number(previewId))).get();
+		if (!previewRow) {
+			return;
+		}
 		await orm(c).delete(preview).where(eq(preview.previewId, Number(previewId))).run();
+		const { total } = await orm(c)
+			.select({ total: count() })
+			.from(preview)
+			.where(eq(preview.accountId, previewRow.accountId))
+			.get();
+		if (total === 0) {
+			const placeholderEmail = `preview-deleted-${previewRow.accountId}-${Date.now()}@local.invalid`;
+			await orm(c)
+				.update(account)
+				.set({ isPreview: 0, isDel: isDel.DELETE, email: placeholderEmail, name: '' })
+				.where(eq(account.accountId, previewRow.accountId))
+				.run();
+		}
 	},
 
 	async updateExpire(c, params, userId) {
