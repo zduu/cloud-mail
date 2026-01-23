@@ -174,12 +174,16 @@ export async function email(message, env, ctx) {
 			attachment.accountId = emailRow.accountId;
 		});
 
-		try {
-			if (attachments.length > 0 && await r2Service.hasOSS({ env })) {
-				await attService.addAtt({ env }, attachments);
-			}
-		} catch (e) {
-			console.error(e);
+		const backgroundTasks = [];
+		const hasR2 = attachments.length > 0 ? await r2Service.hasOSS({ env }) : false;
+		if (attachments.length > 0 && hasR2) {
+			backgroundTasks.push((async () => {
+				try {
+					await attService.addAtt({ env }, attachments);
+				} catch (e) {
+					console.error('附件保存失败: ', e);
+				}
+			})());
 		}
 
 		emailRow = await emailService.completeReceive({ env }, account ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
@@ -197,24 +201,23 @@ export async function email(message, env, ctx) {
 
 		//转发到TG
 		if (tgBotStatus === settingConst.tgBotStatus.OPEN && tgChatId) {
-			await telegramService.sendEmailToBot({ env }, emailRow)
+			backgroundTasks.push(telegramService.sendEmailToBot({ env }, emailRow));
 		}
 
 		//转发到其他邮箱
 		if (forwardStatus === settingConst.forwardStatus.OPEN && forwardEmail) {
-
 			const emails = forwardEmail.split(',');
-
-			await Promise.all(emails.map(async email => {
-
+			backgroundTasks.push(Promise.all(emails.map(async email => {
 				try {
 					await message.forward(email);
 				} catch (e) {
 					console.error(`转发邮箱 ${email} 失败：`, e);
 				}
+			})));
+		}
 
-			}));
-
+		if (backgroundTasks.length > 0) {
+			ctx?.waitUntil(Promise.all(backgroundTasks));
 		}
 
 	} catch (e) {
