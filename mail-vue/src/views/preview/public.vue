@@ -200,6 +200,16 @@ async function copyLink() {
     flex: 1;
     min-width: 260px;
   }
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: stretch;
+
+    .share {
+      min-width: 0;
+      width: 100%;
+    }
+  }
 }
 
 .preview-body {
@@ -218,6 +228,7 @@ async function copyLink() {
   border-radius: 10px;
   padding: 12px;
   box-shadow: var(--el-box-shadow-light);
+  min-width: 0;
 }
 
 .email-list {
@@ -235,6 +246,7 @@ async function copyLink() {
   cursor: pointer;
   background: var(--el-fill-color-light);
   transition: all 0.2s;
+  min-width: 0;
 
   &.active {
     border-color: var(--el-color-primary);
@@ -248,17 +260,33 @@ async function copyLink() {
   gap: 6px;
   font-weight: 600;
   color: var(--el-text-color-primary);
+  min-width: 0;
 
   .subject {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
   }
 
   .time {
     color: var(--el-text-color-secondary);
     font-size: 12px;
     white-space: nowrap;
+  }
+}
+
+@media (max-width: 520px) {
+  .email-title {
+    flex-wrap: wrap;
+  }
+
+  .email-title .subject {
+    flex: 1 1 100%;
+  }
+
+  .email-title .time {
+    flex: 0 0 auto;
   }
 }
 
@@ -279,6 +307,7 @@ async function copyLink() {
   min-height: 70vh;
   box-shadow: var(--el-box-shadow-light);
   overflow: hidden;
+  min-width: 0;
 
   @media (max-width: 900px) {
     min-height: auto;
@@ -309,11 +338,42 @@ async function copyLink() {
   line-height: 1.6;
   color: var(--el-text-color-primary);
   word-break: break-word;
+  overflow-x: auto;
+  overflow-wrap: anywhere;
 
   img {
     max-width: 100%;
     height: auto;
   }
+}
+
+:deep(.detail-body *) {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+:deep(.detail-body table) {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed;
+}
+
+:deep(.detail-body th),
+:deep(.detail-body td) {
+  word-break: break-word;
+}
+
+:deep(.detail-body img),
+:deep(.detail-body video),
+:deep(.detail-body iframe) {
+  max-width: 100%;
+  height: auto;
+}
+
+:deep(.detail-body pre),
+:deep(.detail-body code) {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .detail-text pre {
