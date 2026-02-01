@@ -32,7 +32,7 @@
           <el-table-column :label="$t('action')" width="260">
             <template #default="scope">
               <el-button type="primary" link @click="copy(scope.row)">{{ $t('copyLink') }}</el-button>
-              <el-popover placement="top" trigger="click" width="240">
+              <el-popover placement="top" trigger="click" width="240" v-perm="'preview-email:expire'">
                 <template #reference>
                   <el-button type="primary" link>{{ $t('expireTime') }}</el-button>
                 </template>
@@ -47,7 +47,7 @@
                   </div>
                 </div>
               </el-popover>
-              <el-button type="danger" link @click="removeRow(scope.row)">{{ $t('delete') }}</el-button>
+              <el-button type="danger" link @click="removeRow(scope.row)" v-perm="'preview-email:delete'">{{ $t('delete') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -76,7 +76,7 @@
           </div>
           <div class="card-actions">
             <el-button type="primary" link @click="copy(item)">{{ $t('copyLink') }}</el-button>
-            <el-popover placement="top" trigger="click" width="240">
+            <el-popover placement="top" trigger="click" width="240" v-perm="'preview-email:expire'">
               <template #reference>
                 <el-button type="primary" link>{{ $t('expireTime') }}</el-button>
               </template>
@@ -91,7 +91,7 @@
                 </div>
               </div>
             </el-popover>
-            <el-button type="danger" link @click="removeRow(item)">{{ $t('delete') }}</el-button>
+            <el-button type="danger" link @click="removeRow(item)" v-perm="'preview-email:delete'">{{ $t('delete') }}</el-button>
           </div>
         </div>
       </div>

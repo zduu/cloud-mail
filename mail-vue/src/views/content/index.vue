@@ -3,7 +3,7 @@
     <div class="header-actions">
       <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
       <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
-      <Icon class="icon" icon="solar:share-line-duotone" width="20" height="20" @click="openShare"/>
+      <Icon class="icon" icon="solar:share-line-duotone" width="20" height="20" @click="openShare" v-perm="'preview-email:create'"/>
       <span class="star" v-if="emailStore.contentData.showStar">
         <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
         <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>

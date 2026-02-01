@@ -54,12 +54,12 @@
           <Icon icon="fluent:lock-closed-16-regular" width="22" height="22" />
           <span class="menu-name" style="margin-left: 20px">{{$t('permissions')}}</span>
         </el-menu-item>
-        <el-menu-item @click="router.push({name: 'preview-manage'})" index="preview-manage" v-perm="'preview:manage'"
+        <el-menu-item @click="router.push({name: 'preview-manage'})" index="preview-manage" v-perm="['preview:mailbox:create','preview:mailbox:delete','preview:mailbox:expire']"
                       :class="route.meta.name === 'preview-manage' ? 'choose-item' : ''">
           <Icon icon="mingcute:link-line" width="20" height="20" />
           <span class="menu-name" style="margin-left: 21px">{{$t('previewMailbox')}}</span>
         </el-menu-item>
-        <el-menu-item @click="router.push({name: 'preview-email-manage'})" index="preview-email-manage" v-perm="'preview-email:manage'"
+        <el-menu-item @click="router.push({name: 'preview-email-manage'})" index="preview-email-manage" v-perm="['preview-email:create','preview-email:delete','preview-email:expire']"
                       :class="route.meta.name === 'preview-email-manage' ? 'choose-item' : ''">
           <Icon icon="mingcute:mail-open-line" width="20" height="20" />
           <span class="menu-name" style="margin-left: 21px">{{$t('previewEmailManage')}}</span>

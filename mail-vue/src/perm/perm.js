@@ -33,7 +33,15 @@ export function permsToRouter(permKeys) {
             routerList.push(...routers[perm])
         }
     })
-    return routerList;
+    const unique = []
+    const seen = new Set()
+    for (const route of routerList) {
+        const key = route?.path || route?.name
+        if (!key || seen.has(key)) continue
+        seen.add(key)
+        unique.push(route)
+    }
+    return unique;
 }
 
 const routers = {
@@ -129,7 +137,67 @@ const routers = {
             menu: true
         }
     }],
+    'preview:mailbox:create': [{
+        path: '/preview-manage',
+        name: 'preview-manage',
+        component: () => import('@/views/preview-manage/index.vue'),
+        meta: {
+            title: 'previewMailbox',
+            name: 'preview-manage',
+            menu: true
+        }
+    }],
+    'preview:mailbox:delete': [{
+        path: '/preview-manage',
+        name: 'preview-manage',
+        component: () => import('@/views/preview-manage/index.vue'),
+        meta: {
+            title: 'previewMailbox',
+            name: 'preview-manage',
+            menu: true
+        }
+    }],
+    'preview:mailbox:expire': [{
+        path: '/preview-manage',
+        name: 'preview-manage',
+        component: () => import('@/views/preview-manage/index.vue'),
+        meta: {
+            title: 'previewMailbox',
+            name: 'preview-manage',
+            menu: true
+        }
+    }],
     'preview-email:manage': [{
+        path: '/preview-email-manage',
+        name: 'preview-email-manage',
+        component: () => import('@/views/preview-email-manage/index.vue'),
+        meta: {
+            title: 'previewEmailManage',
+            name: 'preview-email-manage',
+            menu: true
+        }
+    }],
+    'preview-email:create': [{
+        path: '/preview-email-manage',
+        name: 'preview-email-manage',
+        component: () => import('@/views/preview-email-manage/index.vue'),
+        meta: {
+            title: 'previewEmailManage',
+            name: 'preview-email-manage',
+            menu: true
+        }
+    }],
+    'preview-email:delete': [{
+        path: '/preview-email-manage',
+        name: 'preview-email-manage',
+        component: () => import('@/views/preview-email-manage/index.vue'),
+        meta: {
+            title: 'previewEmailManage',
+            name: 'preview-email-manage',
+            menu: true
+        }
+    }],
+    'preview-email:expire': [{
         path: '/preview-email-manage',
         name: 'preview-email-manage',
         component: () => import('@/views/preview-email-manage/index.vue'),
