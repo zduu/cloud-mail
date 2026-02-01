@@ -111,7 +111,14 @@ const en = {
 		"设置查看": "View Settings",
 		"设置修改": "Change Settings",
 		"发件重置": "Reset Send Count",
-		"预览邮件": "Preview Email"
+		"预览邮箱": "Preview Mailbox",
+		"预览邮件": "Preview Email",
+		"预览邮箱-创建": "Preview Mailbox - Create",
+		"预览邮箱-删除": "Preview Mailbox - Delete",
+		"预览邮箱-有效时间": "Preview Mailbox - Expire Time",
+		"预览邮件-创建": "Preview Email - Create",
+		"预览邮件-删除": "Preview Email - Delete",
+		"预览邮件-有效时间": "Preview Email - Expire Time"
 	}
 };
 

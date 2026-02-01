@@ -87,13 +87,43 @@ const init = {
 			console.warn(`跳过字段，原因：${e.message}`);
 		}
 
-		const { total } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview:manage'`).first();
-		if (total === 0) {
-			await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮箱', 'preview:manage', 17, 2, 3)`).run();
+		const previewParent = await c.env.db.prepare(`SELECT perm_id as permId FROM perm WHERE name = '预览邮箱' AND pid = 0`).first();
+		if (!previewParent) {
+			await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮箱', NULL, 0, 1, 6.5)`).run();
 		}
-		const { total: emailPreviewTotal } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview-email:manage'`).first();
-		if (emailPreviewTotal === 0) {
-			await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮件', 'preview-email:manage', 17, 2, 4)`).run();
+		const previewRow = await c.env.db.prepare(`SELECT perm_id as permId FROM perm WHERE name = '预览邮箱' AND pid = 0`).first();
+		if (previewRow) {
+			const { total: mailboxCreateTotal } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview:mailbox:create'`).first();
+			if (mailboxCreateTotal === 0) {
+				await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮箱-创建', 'preview:mailbox:create', ?, 2, 0.1)`).bind(previewRow.permId).run();
+			}
+			const { total: mailboxDeleteTotal } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview:mailbox:delete'`).first();
+			if (mailboxDeleteTotal === 0) {
+				await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮箱-删除', 'preview:mailbox:delete', ?, 2, 0.2)`).bind(previewRow.permId).run();
+			}
+			const { total: mailboxExpireTotal } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview:mailbox:expire'`).first();
+			if (mailboxExpireTotal === 0) {
+				await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮箱-有效时间', 'preview:mailbox:expire', ?, 2, 0.3)`).bind(previewRow.permId).run();
+			}
+		}
+		const emailPreviewParent = await c.env.db.prepare(`SELECT perm_id as permId FROM perm WHERE name = '预览邮件' AND pid = 0`).first();
+		if (!emailPreviewParent) {
+			await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮件', NULL, 0, 1, 6.6)`).run();
+		}
+		const emailPreviewRow = await c.env.db.prepare(`SELECT perm_id as permId FROM perm WHERE name = '预览邮件' AND pid = 0`).first();
+		if (emailPreviewRow) {
+			const { total: emailCreateTotal } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview-email:create'`).first();
+			if (emailCreateTotal === 0) {
+				await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮件-创建', 'preview-email:create', ?, 2, 0.1)`).bind(emailPreviewRow.permId).run();
+			}
+			const { total: emailDeleteTotal } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview-email:delete'`).first();
+			if (emailDeleteTotal === 0) {
+				await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮件-删除', 'preview-email:delete', ?, 2, 0.2)`).bind(emailPreviewRow.permId).run();
+			}
+			const { total: emailExpireTotal } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview-email:expire'`).first();
+			if (emailExpireTotal === 0) {
+				await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮件-有效时间', 'preview-email:expire', ?, 2, 0.3)`).bind(emailPreviewRow.permId).run();
+			}
 		}
 	},
 
@@ -456,8 +486,14 @@ const init = {
         (28, '邮件查看', 'all-email:query', 27, 2, 0),
         (29, '邮件删除', 'all-email:delete', 27, 2, 0),
 				(30, '身份添加', 'role:add', 13, 2, -1),
-				(31, '预览邮箱', 'preview:manage', 17, 2, 3),
-				(32, '预览邮件', 'preview-email:manage', 17, 2, 4)
+				(31, '预览邮箱', NULL, 0, 1, 6.5),
+				(32, '预览邮箱-创建', 'preview:mailbox:create', 31, 2, 0.1),
+				(33, '预览邮箱-删除', 'preview:mailbox:delete', 31, 2, 0.2),
+				(34, '预览邮箱-有效时间', 'preview:mailbox:expire', 31, 2, 0.3),
+				(35, '预览邮件', NULL, 0, 1, 6.6),
+				(36, '预览邮件-创建', 'preview-email:create', 35, 2, 0.1),
+				(37, '预览邮件-删除', 'preview-email:delete', 35, 2, 0.2),
+				(38, '预览邮件-有效时间', 'preview-email:expire', 35, 2, 0.3)
       `).run();
 		}
 
