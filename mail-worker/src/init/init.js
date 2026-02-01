@@ -91,6 +91,10 @@ const init = {
 		if (total === 0) {
 			await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮箱', 'preview:manage', 17, 2, 3)`).run();
 		}
+		const { total: emailPreviewTotal } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview-email:manage'`).first();
+		if (emailPreviewTotal === 0) {
+			await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮件', 'preview-email:manage', 17, 2, 4)`).run();
+		}
 	},
 
 	async v2_8DB(c) {
@@ -452,7 +456,8 @@ const init = {
         (28, '邮件查看', 'all-email:query', 27, 2, 0),
         (29, '邮件删除', 'all-email:delete', 27, 2, 0),
 				(30, '身份添加', 'role:add', 13, 2, -1),
-				(31, '预览邮箱', 'preview:manage', 17, 2, 3)
+				(31, '预览邮箱', 'preview:manage', 17, 2, 3),
+				(32, '预览邮件', 'preview-email:manage', 17, 2, 4)
       `).run();
 		}
 
@@ -594,6 +599,19 @@ const init = {
     `).run();
 
 		await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_preview_token ON preview(token);`).run();
+
+		await c.env.db.prepare(`
+      CREATE TABLE IF NOT EXISTS email_preview (
+        preview_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        token TEXT NOT NULL,
+        expire_time TEXT,
+        create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )
+    `).run();
+
+		await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_preview_token ON email_preview(token);`).run();
 
 		await c.env.db.prepare(`
       CREATE TABLE IF NOT EXISTS setting (

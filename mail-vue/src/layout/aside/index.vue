@@ -59,6 +59,11 @@
           <Icon icon="mingcute:link-line" width="20" height="20" />
           <span class="menu-name" style="margin-left: 21px">{{$t('previewMailbox')}}</span>
         </el-menu-item>
+        <el-menu-item @click="router.push({name: 'preview-email-manage'})" index="preview-email-manage" v-perm="'preview-email:manage'"
+                      :class="route.meta.name === 'preview-email-manage' ? 'choose-item' : ''">
+          <Icon icon="mingcute:mail-open-line" width="20" height="20" />
+          <span class="menu-name" style="margin-left: 21px">{{$t('previewEmailManage')}}</span>
+        </el-menu-item>
         <el-menu-item @click="router.push({name: 'reg-key'})" index="reg-key" v-perm="'reg-key:query'"
                       :class="route.meta.name === 'reg-key' ? 'choose-item' : ''">
           <Icon icon="fluent:fingerprint-20-filled" width="22" height="22" />

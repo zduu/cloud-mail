@@ -6,16 +6,30 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MAIL_WORKER_DIR="$ROOT_DIR/mail-worker"
 MAIL_VUE_DIR="$ROOT_DIR/mail-vue"
 WORKER_URL="${WORKER_URL:-http://127.0.0.1:8787}"
-READY_PATH="${READY_PATH:-/api/__ready__}"
+READY_PATH="${READY_PATH:-/api/setting/websiteConfig}"
 PNPM_BIN="${PNPM_BIN:-pnpm}"
 RESET_WORKER_STATE="${RESET_WORKER_STATE:-false}"
 FORCE_PORT_RELEASE="${FORCE_PORT_RELEASE:-true}"
 VITE_HOST="${VITE_HOST:-localhost}"
 VITE_PORT="${VITE_PORT:-3001}"
+WAIT_FOR_WORKER="${WAIT_FOR_WORKER:-false}"
+SEED_SAMPLE_EMAILS="${SEED_SAMPLE_EMAILS:-true}"
 
 if ! command -v "$PNPM_BIN" >/dev/null 2>&1; then
   echo "[ERROR] pnpm is required but not found in PATH." >&2
   exit 1
+fi
+
+if [[ -z "${NVM_DIR:-}" ]]; then
+  export NVM_DIR="$HOME/.nvm"
+fi
+
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+  # shellcheck source=/dev/null
+  . "$NVM_DIR/nvm.sh"
+  if [[ -f "$ROOT_DIR/.nvmrc" ]]; then
+    nvm use >/dev/null
+  fi
 fi
 
 info() {
@@ -80,7 +94,7 @@ cleanup() {
 wait_for_worker() {
   local attempt=0
   local max_attempts=60
-  until curl -s -o /dev/null "$WORKER_URL$READY_PATH" 2>/dev/null; do
+  until curl -s -o /dev/null --connect-timeout 1 --max-time 1 "$WORKER_URL$READY_PATH" 2>/dev/null; do
     attempt=$((attempt + 1))
     if [[ $attempt -ge $max_attempts ]]; then
       echo "[ERROR] Worker dev server did not become ready after $max_attempts seconds." >&2
@@ -103,12 +117,24 @@ info "Installing mail-worker dependencies..."
 info "Installing mail-vue dependencies..."
 (cd "$MAIL_VUE_DIR" && "$PNPM_BIN" install)
 
+if [[ "$SEED_SAMPLE_EMAILS" == "true" ]]; then
+  info "Seeding sample emails into local D1..."
+  (cd "$MAIL_WORKER_DIR" && "$PNPM_BIN" wrangler d1 execute email --local --config wrangler-dev.toml --file "$ROOT_DIR/scripts/seed-sample-emails.sql") || true
+fi
+
 info "Starting Cloud Mail worker (wrangler dev) on port $WORKER_PORT..."
 (cd "$MAIL_WORKER_DIR" && "$PNPM_BIN" dev) &
 WORKER_PID=$!
 
-info "Waiting for worker dev server at $WORKER_URL (path $READY_PATH)..."
-wait_for_worker
+if [[ "$WAIT_FOR_WORKER" == "true" ]]; then
+  info "Waiting for worker dev server at $WORKER_URL (path $READY_PATH)..."
+  if ! wait_for_worker; then
+    echo "[WARN] Worker did not report ready in time; continuing to start frontend." >&2
+  fi
+else
+  info "Skipping worker readiness check (set WAIT_FOR_WORKER=true to enable)."
+  sleep 1
+fi
 
 info "Starting Vue dev server on $VITE_HOST:$VITE_PORT..."
 (cd "$MAIL_VUE_DIR" && "$PNPM_BIN" dev -- --host "$VITE_HOST" --port "$VITE_PORT") &

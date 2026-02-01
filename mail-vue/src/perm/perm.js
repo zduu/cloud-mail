@@ -128,5 +128,15 @@ const routers = {
             name: 'preview-manage',
             menu: true
         }
+    }],
+    'preview-email:manage': [{
+        path: '/preview-email-manage',
+        name: 'preview-email-manage',
+        component: () => import('@/views/preview-email-manage/index.vue'),
+        meta: {
+            title: 'previewEmailManage',
+            name: 'preview-email-manage',
+            menu: true
+        }
     }]
 }

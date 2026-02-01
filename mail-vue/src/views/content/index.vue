@@ -3,6 +3,7 @@
     <div class="header-actions">
       <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
       <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
+      <Icon class="icon" icon="solar:share-line-duotone" width="20" height="20" @click="openShare"/>
       <span class="star" v-if="emailStore.contentData.showStar">
         <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
         <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
@@ -70,6 +71,14 @@
         show-progress
         @close="showPreview = false"
     />
+    <el-dialog v-model="shareVisible" :title="t('shareEmailPreview')" width="420px">
+      <el-input v-model="shareLink" readonly size="small">
+        <template #append>
+          <el-button :loading="shareLoading" @click="copyShareLink">{{ t('copyLink') }}</el-button>
+        </template>
+      </el-input>
+      <div class="share-tip">{{ t('shareEmailPreviewTip') }}</div>
+    </el-dialog>
   </div>
 </template>
 <script setup>
@@ -91,6 +100,7 @@ import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {previewEmailCreate} from "@/request/preview.js";
 
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
@@ -100,6 +110,9 @@ const router = useRouter()
 const email = emailStore.contentData.email
 const showPreview = ref(false)
 const srcList = reactive([])
+const shareVisible = ref(false)
+const shareLink = ref('')
+const shareLoading = ref(false)
 
 const { t } = useI18n()
 watch(() => accountStore.currentAccountId, () => {
@@ -146,6 +159,51 @@ function isImage(filename) {
 function formateReceive(recipient) {
   recipient = JSON.parse(recipient)
   return recipient.map(item => item.address).join(', ')
+}
+
+async function openShare() {
+  shareVisible.value = true;
+  await refreshShareLink();
+}
+
+async function refreshShareLink() {
+  if (shareLoading.value) return;
+  shareLoading.value = true;
+  try {
+    const data = await previewEmailCreate(email.emailId);
+    shareLink.value = `${window.location.origin}/preview/email/${data.token}`;
+  } catch (e) {
+    ElMessage({
+      message: e.message || t('copyFailMsg'),
+      type: 'error',
+      plain: true
+    });
+  } finally {
+    shareLoading.value = false;
+  }
+}
+
+async function copyShareLink() {
+  if (!shareLink.value) {
+    await refreshShareLink();
+  }
+  if (!shareLink.value) {
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(shareLink.value);
+    ElMessage({
+      message: t('copySuccessMsg'),
+      type: 'success',
+      plain: true
+    });
+  } catch (e) {
+    ElMessage({
+      message: t('copyFailMsg'),
+      type: 'error',
+      plain: true
+    });
+  }
 }
 
 function changeStar() {
@@ -231,6 +289,12 @@ const handleDelete = () => {
   .icon {
     cursor: pointer;
   }
+}
+
+.share-tip {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 
