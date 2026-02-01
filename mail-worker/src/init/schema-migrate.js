@@ -1,6 +1,6 @@
 import KvConst from '../const/kv-const';
 
-export const LATEST_SCHEMA_VERSION = 3;
+export const LATEST_SCHEMA_VERSION = 5;
 
 async function getSchemaVersion(c) {
 	const raw = await c.env.kv.get(KvConst.SCHEMA_VERSION);
@@ -85,6 +85,35 @@ export async function ensureSchema(c) {
 			await c.env.db.prepare(`ALTER TABLE account ADD COLUMN is_preview INTEGER NOT NULL DEFAULT 0;`).run();
 		} catch (e) {
 			console.warn(`跳过字段 account.is_preview：${e.message}`);
+		}
+	}
+
+	if (current < 4) {
+		try {
+			await c.env.db.prepare(`
+				CREATE TABLE IF NOT EXISTS email_preview (
+					preview_id INTEGER PRIMARY KEY AUTOINCREMENT,
+					email_id INTEGER NOT NULL,
+					user_id INTEGER NOT NULL,
+					token TEXT NOT NULL,
+					expire_time TEXT,
+					create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+				)
+			`).run();
+			await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_preview_token ON email_preview(token);`).run();
+		} catch (e) {
+			console.warn(`跳过表 email_preview：${e.message}`);
+		}
+	}
+
+	if (current < 5 && hasPerm) {
+		try {
+			const { total } = await c.env.db.prepare(`SELECT COUNT(*) as total FROM perm WHERE perm_key = 'preview-email:manage'`).first();
+			if (total === 0) {
+				await c.env.db.prepare(`INSERT INTO perm (name, perm_key, pid, type, sort) VALUES ('预览邮件', 'preview-email:manage', 17, 2, 4)`).run();
+			}
+		} catch (e) {
+			console.warn(`跳过权限 preview-email:manage：${e.message}`);
 		}
 	}
 

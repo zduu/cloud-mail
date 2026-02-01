@@ -73,6 +73,10 @@ const en = {
 	adminNotExist: 'Admin account is missing, please initialize admin first',
 	previewExpired: 'Preview link has expired',
 	previewExpireInvalid: 'Invalid expiration time',
+	previewEmailInvalid: 'Invalid email for preview',
+	previewEmailNotExist: 'Preview email does not exist or was deleted',
+	previewEmailInvalidToken: 'Email preview link is invalid or expired',
+	previewEmailExpired: 'Email preview link has expired',
 	perms: {
 		"邮件": "Email",
 		"邮件发送": "Send Email",
@@ -106,7 +110,8 @@ const en = {
 		"系统设置": "System Settings",
 		"设置查看": "View Settings",
 		"设置修改": "Change Settings",
-		"发件重置": "Reset Send Count"
+		"发件重置": "Reset Send Count",
+		"预览邮件": "Preview Email"
 	}
 };
 

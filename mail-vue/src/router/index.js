@@ -61,6 +61,16 @@ const routes = [
                     menu: true
                 }
             },
+            {
+                path: '/preview-email-manage',
+                name: 'preview-email-manage',
+                component: () => import('@/views/preview-email-manage/index.vue'),
+                meta: {
+                    title: 'previewEmailManage',
+                    name: 'preview-email-manage',
+                    menu: true
+                }
+            },
         ]
 
     },
@@ -73,6 +83,14 @@ const routes = [
         path: '/preview/mail/:token',
         name: 'preview-page',
         component: () => import('@/views/preview/public.vue'),
+        meta: {
+            public: true
+        }
+    },
+    {
+        path: '/preview/email/:token',
+        name: 'preview-email',
+        component: () => import('@/views/preview/email.vue'),
         meta: {
             public: true
         }

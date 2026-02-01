@@ -73,6 +73,10 @@ const zh = {
 	adminNotExist: '管理员账号不存在，请先初始化管理员',
 	previewExpired: '预览链接已过期',
 	previewExpireInvalid: '无效的过期时间',
+	previewEmailInvalid: '预览邮件无效',
+	previewEmailNotExist: '预览邮件不存在或已被删除',
+	previewEmailInvalidToken: '邮件预览链接已失效',
+	previewEmailExpired: '邮件预览链接已过期',
 	perms: {
 		"邮件": "邮件",
 		"邮件发送": "邮件发送",
@@ -106,7 +110,8 @@ const zh = {
 		"系统设置": "系统设置",
 		"设置查看": "设置查看",
 		"设置修改": "设置修改",
-		'发件重置': '发件重置'
+		'发件重置': '发件重置',
+		'预览邮件': '预览邮件'
 	}
 }
 
