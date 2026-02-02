@@ -1,6 +1,6 @@
 import KvConst from '../const/kv-const';
 
-export const LATEST_SCHEMA_VERSION = 7;
+export const LATEST_SCHEMA_VERSION = 8;
 
 async function getSchemaVersion(c) {
 	const raw = await c.env.kv.get(KvConst.SCHEMA_VERSION);
@@ -216,6 +216,14 @@ export async function ensureSchema(c) {
 			}
 		} catch (e) {
 			console.warn(`跳过权限预览邮件迁移：${e.message}`);
+		}
+	}
+
+	if (current < 8) {
+		try {
+			await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_preview_unique ON email_preview(email_id, user_id);`).run();
+		} catch (e) {
+			console.warn(`跳过索引 email_preview_unique：${e.message}`);
 		}
 	}
 
