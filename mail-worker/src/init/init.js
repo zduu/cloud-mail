@@ -648,6 +648,7 @@ const init = {
     `).run();
 
 		await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_preview_token ON email_preview(token);`).run();
+		await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_preview_unique ON email_preview(email_id, user_id);`).run();
 
 		await c.env.db.prepare(`
       CREATE TABLE IF NOT EXISTS setting (

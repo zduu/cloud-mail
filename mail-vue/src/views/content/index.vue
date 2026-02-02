@@ -71,7 +71,7 @@
         show-progress
         @close="showPreview = false"
     />
-    <el-dialog v-model="shareVisible" :title="t('shareEmailPreview')" width="420px">
+    <el-dialog v-model="shareVisible" :title="t('shareEmailPreview')" class="share-dialog">
       <el-input v-model="shareLink" readonly size="small">
         <template #append>
           <el-button :loading="shareLoading" @click="copyShareLink">{{ t('copyLink') }}</el-button>
@@ -295,6 +295,10 @@ const handleDelete = () => {
   margin-top: 10px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+:deep(.share-dialog .el-dialog) {
+  width: min(92vw, 420px);
 }
 
 

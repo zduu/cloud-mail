@@ -18,6 +18,20 @@ const emailPreviewService = {
 			throw new BizError(t('previewEmailInvalid'));
 		}
 
+		const existing = await orm(c)
+			.select()
+			.from(emailPreview)
+			.where(and(
+				eq(emailPreview.emailId, emailId),
+				eq(emailPreview.userId, userId)
+			))
+			.orderBy(desc(emailPreview.previewId))
+			.get();
+
+		if (existing) {
+			return existing;
+		}
+
 		const emailRow = await orm(c)
 			.select()
 			.from(email)
