@@ -52,6 +52,16 @@ const routes = [
                 }
             },
             {
+                path: '/outlook',
+                name: 'outlook',
+                component: () => import('@/views/outlook/index.vue'),
+                meta: {
+                    title: 'outlookMailbox',
+                    name: 'outlook',
+                    menu: true
+                }
+            },
+            {
                 path: '/preview-manage',
                 name: 'preview-manage',
                 component: () => import('@/views/preview-manage/index.vue'),

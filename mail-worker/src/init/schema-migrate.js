@@ -1,6 +1,6 @@
 import KvConst from '../const/kv-const';
 
-export const LATEST_SCHEMA_VERSION = 8;
+export const LATEST_SCHEMA_VERSION = 9;
 
 async function getSchemaVersion(c) {
 	const raw = await c.env.kv.get(KvConst.SCHEMA_VERSION);
@@ -224,6 +224,32 @@ export async function ensureSchema(c) {
 			await c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_preview_unique ON email_preview(email_id, user_id);`).run();
 		} catch (e) {
 			console.warn(`跳过索引 email_preview_unique：${e.message}`);
+		}
+	}
+
+	if (current < 9) {
+		try {
+			await c.env.db.prepare(`
+				CREATE TABLE IF NOT EXISTS outlook_account (
+					outlook_account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+					user_id INTEGER NOT NULL,
+					email TEXT NOT NULL,
+					password TEXT NOT NULL DEFAULT '',
+					client_id TEXT NOT NULL,
+					refresh_token TEXT NOT NULL,
+					remark TEXT NOT NULL DEFAULT '',
+					status TEXT NOT NULL DEFAULT 'active',
+					last_refresh_at TEXT,
+					last_refresh_status TEXT NOT NULL DEFAULT '',
+					last_refresh_error TEXT NOT NULL DEFAULT '',
+					create_time TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+					update_time TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+					UNIQUE(user_id, email)
+				)
+			`).run();
+			await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_outlook_account_user ON outlook_account(user_id, update_time);`).run();
+		} catch (e) {
+			console.warn(`跳过 Outlook 账号表：${e.message}`);
 		}
 	}
 
