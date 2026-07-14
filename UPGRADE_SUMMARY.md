@@ -111,7 +111,7 @@
 - 全面推送前审查修复部署入口：数据库初始化改为 `POST /api/init` 并通过 `Authorization` 头传密钥，避免密钥进入 URL/日志；Resend webhook 强制校验 Svix 签名；JWT、LinuxDo 和 Resend webhook 密钥改为 Worker Secret 注入。
 - zduu 远端当前没有 Actions Secret/Variable。为防止强推后误触发失败或意外生产部署，Cloudflare 工作流已改为仅手动触发，并移除自动删除流水线记录的第三方 Action；配置所需变量后再从 Actions 页面执行。
 - 部署工作流只允许从 Actions Secret 读取 Cloudflare API Token、JWT、LinuxDo Client Secret 和 Resend webhook secret；移除旧 `sed` 流程遗留的 JWT 字符限制，允许使用完整高熵随机密钥。
-- GitHub Actions 的 pnpm 版本统一为 11，与本地验证和依赖构建白名单策略一致，避免 CI 使用 pnpm 9 时产生安装行为差异。
+- GitHub Actions 的 pnpm 版本现已统一为 10.11.1，与 Cloudflare Workers Builds 和根工作区锁文件一致，避免不同 pnpm 主版本产生安装行为差异。
 - 依赖安全审计发现 Worker 的 AWS SDK/fast-xml-parser、Rollup/Undici 等存在 critical/high 公告，已升级 AWS SDK、Cloudflare 工具链、Hono、PostalMime、Resend、Linkedom、UAParser、Vitest 和 Wrangler 到包含修复的兼容版本，待重新执行测试与部署 dry-run。
 - Workers Vitest 4 测试池移除了旧的 `/config` 入口且仅提供 ESM，已按新版插件接口迁移为 `vitest.config.mjs`，继续执行全量回归。
 - Worker 二次审计确认剩余 high 来自未使用的 `@cloudflare/vite-plugin` 生产依赖及旧版 Drizzle；已移除该无用插件并将 Drizzle 升级至修复 SQL 标识符注入的版本。
@@ -132,6 +132,9 @@
 - 已在相互隔离的临时干净目录分别验证 `mail-worker` 与 `mail-vue`：两者均可使用 pnpm 10.11.1 执行离线冻结安装，且 `pnpm ignored-builds` 均返回 `None`。
 - 首次修复推送后 Cloudflare 已越过原依赖安装阶段但远端检查仍失败；根 `package.json` 补充 `build`、`test`、`deploy` 转发脚本，兼容 Cloudflare 从仓库根目录调用 `pnpm run deploy` 等构建命令。
 - 已从仓库根目录执行 `CI=true pnpm run deploy --dry-run`，前端自定义构建、320 个静态资源读取、Worker 打包和生产配置绑定解析均成功完成。
+- 第二次远端构建已持续超过首次根工作区冷安装耗时；为避免 Wrangler 自定义构建重复安装前端并在非交互环境等待模块清理确认，三个 Wrangler 配置均改为只执行前端构建。GitHub Actions 同步改为在仓库根目录使用统一锁文件安装一次全部依赖。
+- 去除重复安装后，未设置 `CI=true` 的根目录 `pnpm run deploy --dry-run` 也已通过，确认部署流程不再包含交互式依赖重装步骤。
+- 最终回归再次通过：根目录测试脚本执行 5 个 Worker 测试文件共 25 项用例，测试 Wrangler 配置 dry-run 成功，GitHub Actions YAML 可正常解析，Git 差异检查无格式错误。
 
 ## 生产部署时需要填写或轮换的信息
 
