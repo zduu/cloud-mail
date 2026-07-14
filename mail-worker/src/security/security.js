@@ -7,6 +7,7 @@ import userService from '../service/user-service';
 import permService from '../service/perm-service';
 import { t } from '../i18n/i18n'
 import app from '../hono/hono';
+import adminUtils from '../utils/admin-utils';
 
 const exclude = [
 	'/login',
@@ -121,7 +122,7 @@ app.use('*', async (c, next) => {
 
 		const userPublicToken = await c.env.kv.get(KvConst.PUBLIC_KEY);
 		const publicToken = c.req.header(constant.TOKEN_HEADER);
-		if (publicToken !== userPublicToken) {
+		if (!userPublicToken || !publicToken || publicToken !== userPublicToken) {
 			throw new BizError(t('publicTokenFail'), 401);
 		}
 		return await next();
@@ -143,7 +144,7 @@ app.use('*', async (c, next) => {
 		throw new BizError(t('authExpired'), 401);
 	}
 
-	if (!authInfo.tokens.includes(token)) {
+	if (!Array.isArray(authInfo.tokens) || !authInfo.tokens.includes(token)) {
 		throw new BizError(t('authExpired'), 401);
 	}
 
@@ -161,7 +162,7 @@ app.use('*', async (c, next) => {
 			return path.startsWith(item);
 		});
 
-		if (userPermIndex === -1 && authInfo.user.email !== c.env.admin) {
+		if (userPermIndex === -1 && !adminUtils.isAdminEmail(c, authInfo.user.email)) {
 			throw new BizError(t('unauthorized'), 403);
 		}
 

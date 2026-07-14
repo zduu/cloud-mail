@@ -14,6 +14,7 @@ import { isDel, roleConst } from '../const/entity-const';
 import email from '../entity/email';
 import userService from './user-service';
 import KvConst from '../const/kv-const';
+import adminUtils from '../utils/admin-utils';
 
 const publicService = {
 
@@ -45,6 +46,10 @@ const publicService = {
 
 		size = Number(size);
 		num = Number(num);
+		if (!Number.isFinite(size) || size <= 0) size = 20;
+		if (!Number.isFinite(num) || num <= 0) num = 1;
+		size = Math.min(Math.floor(size), 100);
+		num = Math.floor(num);
 
 		num = (num - 1) * size;
 
@@ -97,6 +102,10 @@ const publicService = {
 	async addUser(c, params) {
 		const { list } = params;
 
+		if (!Array.isArray(list)) {
+			throw new BizError(t('invalidUserList'));
+		}
+
 		if (list.length === 0) return;
 
 		for (const emailRow of list) {
@@ -135,14 +144,17 @@ const publicService = {
 				type = roleRow ? roleRow.roleId : type;
 			}
 
-			const userSql = `INSERT INTO user (email, password, salt, type, os, browser, active_ip, create_ip, device, active_time, create_time)
-			VALUES ('${email}', '${hash}', '${salt}', '${type}', '${os}', '${browser}', '${activeIp}', '${activeIp}', '${device}', '${activeTime}', '${activeTime}')`
+			userList.push(c.env.db.prepare(`
+				INSERT INTO user (
+					email, password, salt, type, os, browser,
+					active_ip, create_ip, device, active_time, create_time
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`).bind(email, hash, salt, type, os, browser, activeIp, activeIp, device, activeTime, activeTime));
 
-			const accountSql = `INSERT INTO account (email, name, user_id)
-			VALUES ('${email}', '${emailUtils.getName(email)}', 0);`;
-
-			userList.push(c.env.db.prepare(userSql));
-			userList.push(c.env.db.prepare(accountSql));
+			userList.push(c.env.db.prepare(`
+				INSERT INTO account (email, name, user_id)
+				VALUES (?, ?, 0)
+			`).bind(email, emailUtils.getName(email)));
 
 		}
 
@@ -177,7 +189,7 @@ const publicService = {
 
 		const userRow = await userService.selectByEmailIncludeDel(c, email);
 
-		if (email !== c.env.admin) {
+		if (!adminUtils.isAdminEmail(c, email)) {
 			throw new BizError(t('notAdmin'));
 		}
 

@@ -104,6 +104,7 @@
 - 历史重写前已生成本地恢复包 `/tmp/cloud-mail-before-history-rewrite.bundle`；该临时文件不得提交或上传。
 - 历史重写后已重新完成最终验证：前端生产构建通过；Worker 3 个测试文件、9 个用例全部通过；Wrangler 4.90.0 使用去敏测试配置完成部署 dry-run。临时恢复包、reflog 和不可达旧对象已清理。
 - 已提交用户原有清理项：`.gitignore` 改为忽略 `temp/`，并删除已完成使命的 `OUTLOOK_FEATURE_PLAN.md`；该提交不影响 Outlook 功能实现。
+- 全面推送前审查修复第一组认证链问题：公共 API 在 KV token 未配置时不再匿名放行；批量添加用户改用 SQL 绑定参数并限制分页；OAuth 绑定增加 10 分钟签名授权、前端 OAuth `state` 校验；修复退出登录漏 `await` 导致会话未移除的问题，并在重写 KV 时保留会话 TTL；新增对应安全回归测试。
 
 ## 生产部署时需要填写或轮换的信息
 

@@ -178,6 +178,7 @@ const show = ref('login')
 const bindForm = reactive({
   email: '',
   oauthUserId: '',
+  bindToken: '',
   code: ''
 })
 
@@ -263,9 +264,17 @@ const getEmailName = (email) => {
 
 function linuxDoLogin() {
   const clientId = settingStore.settings.linuxdoClientId
-  const redirectUri = encodeURIComponent(settingStore.settings.linuxdoCallbackUrl)
-  window.location.href =
-      `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email`
+  const stateBytes = new Uint8Array(24)
+  crypto.getRandomValues(stateBytes)
+  const state = Array.from(stateBytes, byte => byte.toString(16).padStart(2, '0')).join('')
+  sessionStorage.setItem('linuxdo_oauth_state', state)
+  const authorizeUrl = new URL('https://connect.linux.do/oauth2/authorize')
+  authorizeUrl.searchParams.set('client_id', clientId)
+  authorizeUrl.searchParams.set('redirect_uri', settingStore.settings.linuxdoCallbackUrl)
+  authorizeUrl.searchParams.set('response_type', 'code')
+  authorizeUrl.searchParams.set('scope', 'openid profile email')
+  authorizeUrl.searchParams.set('state', state)
+  window.location.href = authorizeUrl.toString()
 }
 
 linuxDoGetUser();
@@ -274,13 +283,23 @@ async function linuxDoGetUser() {
 
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
+  const state = params.get('state')
 
   if (code) {
+	const expectedState = sessionStorage.getItem('linuxdo_oauth_state')
+	sessionStorage.removeItem('linuxdo_oauth_state')
+	if (!state || !expectedState || state !== expectedState) {
+	  ElMessage({message: 'OAuth state validation failed', type: 'error', plain: true})
+	  const cleanUrl = window.location.origin + window.location.pathname
+	  window.history.replaceState({}, '', cleanUrl)
+	  return
+	}
 
     oauthLoading.value = true
     oauthLinuxDoLogin(code).then(data => {
 
       bindForm.oauthUserId = data.userInfo.oauthUserId;
+      bindForm.bindToken = data.bindToken || '';
 
       if (!data.token) {
         showBindForm.value = true
@@ -351,7 +370,7 @@ function bind() {
 
   }
 
-  const form = {email, oauthUserId: bindForm.oauthUserId, code: bindForm.code}
+  const form = {email, oauthUserId: bindForm.oauthUserId, bindToken: bindForm.bindToken, code: bindForm.code}
 
   bindLoading.value = true
   oauthBindUser(form).then(data => {
