@@ -127,9 +127,9 @@
 - 使用 pnpm 10.11.1 生成根目录统一锁文件，使 Cloudflare 的 `--frozen-lockfile` 安装可以直接校验两个子项目依赖而无需现场改写锁文件。
 - Cloudflare 等价冻结安装已通过；同时将原先已批准的 `@parcel/watcher`、`vue-demi` 补入 pnpm 10 的 `onlyBuiltDependencies`，避免 pnpm 10 忽略 pnpm 11 `allowBuilds` 配置后跳过前端所需构建脚本。
 - 根工作区修复复验通过：无 `node_modules` 的临时干净副本可使用 pnpm 10.11.1 离线执行冻结安装，592 个包全部安装且无构建脚本被忽略；前端生产构建成功，Worker 5 个测试文件共 25 项用例通过，Wrangler 4.110.0 部署 dry-run 成功，前后端生产依赖审计均为零已知漏洞。
-- 为兼容 Cloudflare 将构建根目录设为 `mail-worker` 或 `mail-vue` 的情况，两个子项目原有的 `pnpm-workspace.yaml` 也分别补充 `packages: ['.']`；仓库根目录和子目录两种安装入口均具备有效工作区声明。
-- 前端子工作区的 pnpm 10 构建白名单同步补入 `@parcel/watcher`、`vue-demi`，确保直接以 `mail-vue` 为构建根目录时也不会忽略已批准的依赖脚本。
-- 已在相互隔离的临时干净目录分别验证 `mail-worker` 与 `mail-vue`：两者均可使用 pnpm 10.11.1 执行离线冻结安装，且 `pnpm ignored-builds` 均返回 `None`。
+- Cloudflare 新日志确认其构建根目录为 `mail-worker`：依赖阶段仅安装 Worker 的 157 个包，随后前端构建因 `vite: not found` 失败。
+- 删除两个会截断父级工作区查找的子项目 `pnpm-workspace.yaml`；在临时干净副本中从 `mail-worker` 执行冻结安装后，pnpm 已正确继承根工作区并安装全部 592 个包，前端 Vite 可执行文件存在且没有构建脚本被忽略。
+- 当前工作树再次从 `mail-worker` 入口完成冻结安装并显示 `Scope: all 3 workspace projects`，随后根部署 dry-run 成功，确认该布局与 Cloudflare 的实际构建根目录一致。
 - 首次修复推送后 Cloudflare 已越过原依赖安装阶段但远端检查仍失败；根 `package.json` 补充 `build`、`test`、`deploy` 转发脚本，兼容 Cloudflare 从仓库根目录调用 `pnpm run deploy` 等构建命令。
 - 已从仓库根目录执行 `CI=true pnpm run deploy --dry-run`，前端自定义构建、320 个静态资源读取、Worker 打包和生产配置绑定解析均成功完成。
 - 第二次远端构建已持续超过首次根工作区冷安装耗时；为避免 Wrangler 自定义构建重复安装前端并在非交互环境等待模块清理确认，三个 Wrangler 配置均改为只执行前端构建。GitHub Actions 同步改为在仓库根目录使用统一锁文件安装一次全部依赖。
