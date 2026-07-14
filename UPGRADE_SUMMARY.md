@@ -135,6 +135,9 @@
 - 自动迁移已前置到 Hono 全局中间件和定时任务入口，邮件列表无需依赖设置页缓存刷新或人工初始化；迁移异常仍由统一 API 错误处理返回。测试通过真实 Worker 请求触发迁移后再执行邮件列表查询。
 - 核心迁移同时补齐早期 `attachments.status/type`；回归数据库加入真实账户和邮件记录，覆盖邮件列表成功返回后继续加载附件的完整路径。
 - 自动迁移修复最终复验通过：Worker 6 个测试文件共 26 项用例全部成功，Wrangler 4.110.0 使用测试配置完成前端构建、320 个静态资源读取和部署 dry-run，Git 差异检查无格式错误。
+- 发现 Cloudflare Workers Builds 每次执行 `wrangler deploy` 都会把公开版配置视为绑定权威来源，因生产 D1/KV ID 已去敏而删除控制台手工绑定；`keep_vars` 仅保留普通变量，不能保留资源绑定。
+- 生产 Wrangler 配置新增不含资源 ID 的 `unsafe.metadata.keep_bindings`，保留普通变量、Secrets、KV、D1、R2 和 Email Sending 绑定，避免自动部署后反复手工重绑。
+- Wrangler 4.110.0 debug dry-run 已确认最终上传元数据包含上述 `keep_bindings`，配置解析和打包均通过；由于现有线上绑定已被前一轮部署删除，需要在本修复部署后最后手工绑定一次，后续自动部署将继续保留。
 - 首次修复推送后 Cloudflare 已越过原依赖安装阶段但远端检查仍失败；根 `package.json` 补充 `build`、`test`、`deploy` 转发脚本，兼容 Cloudflare 从仓库根目录调用 `pnpm run deploy` 等构建命令。
 - 已从仓库根目录执行 `CI=true pnpm run deploy --dry-run`，前端自定义构建、320 个静态资源读取、Worker 打包和生产配置绑定解析均成功完成。
 - 第二次远端构建已持续超过首次根工作区冷安装耗时；为避免 Wrangler 自定义构建重复安装前端并在非交互环境等待模块清理确认，三个 Wrangler 配置均改为只执行前端构建。GitHub Actions 同步改为在仓库根目录使用统一锁文件安装一次全部依赖。

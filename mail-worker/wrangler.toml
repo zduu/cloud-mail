@@ -3,6 +3,20 @@ main = "src/index.js"
 compatibility_date = "2025-06-04"
 keep_vars = true
 
+# 公开仓库不保存生产资源 ID；部署时保留控制台中已有的变量、Secret 和资源绑定。
+# Wrangler 暂无对应的一等配置字段，使用其上传协议支持的 keep_bindings 元数据。
+[unsafe.metadata]
+keep_bindings = [
+  "plain_text",
+  "json",
+  "secret_text",
+  "secret_key",
+  "kv_namespace",
+  "d1",
+  "r2_bucket",
+  "send_email"
+]
+
 [observability]
 enabled = true
 
