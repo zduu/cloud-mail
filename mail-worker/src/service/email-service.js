@@ -22,7 +22,6 @@ import kvConst from '../const/kv-const';
 import { t } from '../i18n/i18n'
 import domainUtils from '../utils/domain-uitls';
 import { att } from '../entity/att';
-import telegramService from './telegram-service';
 import adminUtils from '../utils/admin-utils';
 
 const emailService = {

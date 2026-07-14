@@ -19,7 +19,7 @@ const emailUtils = {
 		return text
 			.split('\n')
 			.map(line => {
-				return line.replace(/[\u200B-\u200F\uFEFF\u034F\u200B-\u200F\u00A0\u3000\u00AD]/g, '')
+					return line.replace(/[\u034F\u00A0\u00AD\u200B-\u200F\u3000\uFEFF]/g, '')
 					.replace(/\s+/g, ' ')
 					.trim();
 			})

@@ -22,8 +22,8 @@ http.interceptors.response.use((res) => {
             const data = res.data
 
             if (noMsg) {
-
-                data.code === 200 ? resolve(data.data) : reject(data)
+				if (data.code === 200) resolve(data.data)
+				else reject(data)
 
             } else if (data.code === 401) {
                 ElMessage({
@@ -117,5 +117,4 @@ http.interceptors.response.use((res) => {
     })
 
 export default http
-
 

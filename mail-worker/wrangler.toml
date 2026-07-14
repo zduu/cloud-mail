@@ -42,6 +42,7 @@ crons = ["0 16 * * *"]
 #admin = ""                # 例如 "admin@example.com"
 #project_link = true
 # jwt_secret 不要配置在此处，请使用 `wrangler secret put jwt_secret`
+# resend_webhook_secret 不要配置在此处，请使用 `wrangler secret put resend_webhook_secret`
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

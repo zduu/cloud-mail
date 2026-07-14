@@ -106,6 +106,19 @@
 - 已提交用户原有清理项：`.gitignore` 改为忽略 `temp/`，并删除已完成使命的 `OUTLOOK_FEATURE_PLAN.md`；该提交不影响 Outlook 功能实现。
 - 全面推送前审查修复第一组认证链问题：公共 API 在 KV token 未配置时不再匿名放行；批量添加用户改用 SQL 绑定参数并限制分页；OAuth 绑定增加 10 分钟签名授权、前端 OAuth `state` 校验；修复退出登录漏 `await` 导致会话未移除的问题，并在重写 KV 时保留会话 TTL；新增对应安全回归测试。
 - 全面推送前审查修复第二组数据与渲染问题：公告 HTML 消毒并限制 CSS 数值；删除预览链接不再误删正式邮箱；Outlook 详情不再回传密码/refresh token，IMAP UID 严格限为数字且邮件正文双重消毒；附件读取统一支持 KV/R2/S3 并正确返回 404；Telegram 查看链接增加 30 天有效期；统一管理员邮箱大小写判断并修复空附件 URL 返回 `NaN`。
+- 全面推送前审查修复部署入口：数据库初始化改为 `POST /api/init` 并通过 `Authorization` 头传密钥，避免密钥进入 URL/日志；Resend webhook 强制校验 Svix 签名；JWT、LinuxDo 和 Resend webhook 密钥改为 Worker Secret 注入。
+- zduu 远端当前没有 Actions Secret/Variable。为防止强推后误触发失败或意外生产部署，Cloudflare 工作流已改为仅手动触发，并移除自动删除流水线记录的第三方 Action；配置所需变量后再从 Actions 页面执行。
+- 部署工作流只允许从 Actions Secret 读取 Cloudflare API Token、JWT、LinuxDo Client Secret 和 Resend webhook secret；移除旧 `sed` 流程遗留的 JWT 字符限制，允许使用完整高熵随机密钥。
+- GitHub Actions 的 pnpm 版本统一为 11，与本地验证和依赖构建白名单策略一致，避免 CI 使用 pnpm 9 时产生安装行为差异。
+- 依赖安全审计发现 Worker 的 AWS SDK/fast-xml-parser、Rollup/Undici 等存在 critical/high 公告，已升级 AWS SDK、Cloudflare 工具链、Hono、PostalMime、Resend、Linkedom、UAParser、Vitest 和 Wrangler 到包含修复的兼容版本，待重新执行测试与部署 dry-run。
+- Workers Vitest 4 测试池移除了旧的 `/config` 入口且仅提供 ESM，已按新版插件接口迁移为 `vitest.config.mjs`，继续执行全量回归。
+- Worker 二次审计确认剩余 high 来自未使用的 `@cloudflare/vite-plugin` 生产依赖及旧版 Drizzle；已移除该无用插件并将 Drizzle 升级至修复 SQL 标识符注入的版本。
+- 前端依赖审计发现 Axios、Lodash、defu、Rollup 等 high 公告，已升级 Axios、Lodash、Element Plus、Pinia 持久化插件、Vite 7 及相关 Vue/构建依赖到安全兼容版本，待重新构建和审计。
+- 前端首次升级构建通过，但 `@vitejs/plugin-vue` 5.x 的 peer 范围不含 Vite 7，已同步升级到 6.x 以消除依赖声明不兼容。
+- 最后两个 moderate 公告来自 UUID 缓冲区边界检查和 ECharts XSS，已分别升级到 UUID 11.1.1+ 与 ECharts 6.1.0+，准备执行零漏洞复审。
+- Wrangler 生产打包复验发现 Outlook 服务的本地 `escapeHtml` 与新增同名导入冲突；已移除重复导入并保留原有转义实现，重新开始完整复验。
+- 独立静态分析继续修复运行边界：S3 删除改用无需 MD5 的单对象删除，避免 Workers WebCrypto 不支持 MD5；无效邮箱置顶/全部收件返回 404；KV/S3 不再写入字符串 `null` 响应头；删除引用未定义变量的死函数、空测试入口及无用导入，并清理可疑表达式。
+- 推送前最终复验通过：Worker 5 个测试文件共 25 项用例全部成功；前端 Vite 7.3.6 生产构建成功；Wrangler 4.110.0 部署 dry-run 成功；Worker/前端生产依赖均为零已知漏洞；peer、冻结锁文件安装、YAML、Shell/Node 语法、合并标记和静态分析错误检查全部通过。
 
 ## 生产部署时需要填写或轮换的信息
 
@@ -118,6 +131,7 @@
 - KV namespace `id`：填写实际 KV 命名空间 ID，不再提交到公开历史。
 - `bucket_name`：使用 R2 时填写实际 bucket 名称；S3 访问密钥必须使用 Secret。
 - Telegram Bot Token、Resend Key、OAuth Client Secret、Cloudflare API Token：全部轮换并通过 Secret 注入。
+- `resend_webhook_secret`：从 Resend webhook 配置获取，使用 `wrangler secret put resend_webhook_secret` 注入，否则 webhook 将安全拒绝请求。
 - Outlook/Microsoft OAuth：复核回调地址、Client ID；Client Secret 必须轮换并从仓库配置中移除。
 
 推荐把无敏感性的功能开关保留在 `[vars]`，把签名密钥、API Token 和 OAuth Secret 放入 Cloudflare Secret；生产资源 ID、域名和管理员邮箱使用私有部署配置或 CI 环境变量生成，不直接修改并提交公开版 `wrangler.toml`。

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import previewService from '../src/service/preview-service';
 import outlookService, { parseImapMessageId } from '../src/service/outlook-service';
 import { objectToResponse } from '../src/service/r2-service';
+import kvObjService from '../src/service/kv-obj-service';
+import accountService from '../src/service/account-service';
 
 describe('预览邮箱删除保护', () => {
 	beforeEach(async () => {
@@ -48,6 +50,11 @@ describe('预览邮箱删除保护', () => {
 		expect(row.email).toContain('preview-deleted-2-');
 		expect(row.isDel).toBe(1);
 		expect(row.isPreview).toBe(0);
+	});
+
+	it('无效账号切换全部收件时返回 404 而不是触发空指针', async () => {
+		await expect(accountService.setAllReceive({ env: { db: env.db } }, { accountId: 999 }, 1))
+			.rejects.toMatchObject({ code: 404 });
 	});
 });
 
@@ -103,5 +110,20 @@ describe('对象存储响应规范化', () => {
 		expect(await response.text()).toBe('content');
 		expect(response.headers.get('content-type')).toBe('text/plain');
 		expect(response.headers.get('cache-control')).toBe('public, max-age=60');
+	});
+
+	it('KV 对象缺少可选元数据时不写入字符串 null 响应头', async () => {
+		const context = {
+			env: {
+				kv: {
+					async getWithMetadata() {
+						return { value: new TextEncoder().encode('kv'), metadata: { contentType: 'text/plain' } };
+					}
+				}
+			}
+		};
+		const response = await kvObjService.getObj(context, 'key');
+		expect(response.headers.get('content-disposition')).toBeNull();
+		expect(response.headers.get('cache-control')).toBeNull();
 	});
 });

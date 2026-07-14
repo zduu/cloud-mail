@@ -11,7 +11,6 @@ import jwtUtils from '../utils/jwt-utils';
 import emailMsgTemplate from '../template/email-msg';
 import emailTextTemplate from '../template/email-text';
 import emailHtmlTemplate from '../template/email-html';
-import verifyUtils from '../utils/verify-utils';
 import domainUtils from "../utils/domain-uitls";
 import constant from '../const/constant';
 

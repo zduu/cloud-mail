@@ -257,11 +257,10 @@ const accountService = {
 	},
 
 	async setAllReceive(c, params, userId) {
-		let a = null
 		const { accountId } = params;
 		const accountRow = await this.selectById(c, accountId);
-		if (accountRow.userId !== userId) {
-			return;
+		if (!accountRow || accountRow.userId !== userId) {
+			throw new BizError(t('noUserAccount'), 404);
 		}
 		await orm(c).update(account).set({ allReceive: accountConst.allReceive.CLOSE }).where(eq(account.userId, userId)).run();
 		await orm(c).update(account).set({ allReceive: accountRow.allReceive ? 0 : 1 }).where(eq(account.accountId, accountId)).run();
@@ -270,6 +269,10 @@ const accountService = {
 	async setAsTop(c, params, userId) {
 		const { accountId } = params;
 		const userRow = await userService.selectById(c, userId);
+		const targetAccount = await this.selectById(c, accountId);
+		if (!userRow || !targetAccount || targetAccount.userId !== userId) {
+			throw new BizError(t('noUserAccount'), 404);
+		}
 		const mainAccountRow = await accountService.selectByEmailIncludeDel(c, userRow.email);
 		let mainSort = mainAccountRow.sort === 0 ? 2 : mainAccountRow.sort + 1;
 		await orm(c).update(account).set({ sort: mainSort }).where(eq(account.email, userRow.email )).run();

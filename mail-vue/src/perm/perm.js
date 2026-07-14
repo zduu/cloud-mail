@@ -15,7 +15,7 @@ export default {
             : permKeys.includes(value);
 
         if (!hasPermission) {
-            el.parentNode && el.parentNode.removeChild(el);
+            if (el.parentNode) el.parentNode.removeChild(el);
         }
     }
 }

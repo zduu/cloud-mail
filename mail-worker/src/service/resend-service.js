@@ -1,10 +1,33 @@
 import emailService from './email-service';
 import { emailConst } from '../const/entity-const';
 import BizError from '../error/biz-error';
+import { Resend } from 'resend';
+import { t } from '../i18n/i18n';
 
 const resendService = {
 
-	async webhooks(c, body) {
+	async webhooks(c, payload, headers) {
+		if (!c.env.resend_webhook_secret) {
+			throw new BizError(t('resendWebhookNotConfigured'), 503);
+		}
+		if (!headers?.id || !headers?.timestamp || !headers?.signature) {
+			throw new BizError(t('resendWebhookInvalid'), 401);
+		}
+
+		let body;
+		try {
+			body = new Resend('re_webhook_verification_only').webhooks.verify({
+				payload,
+				headers,
+				webhookSecret: c.env.resend_webhook_secret
+			});
+		} catch (error) {
+			throw new BizError(t('resendWebhookInvalid'), 401);
+		}
+
+		if (!body?.data?.email_id || !body?.type) {
+			throw new BizError(t('resendWebhookInvalid'), 400);
+		}
 
 		const params = {
 			resendEmailId: body.data.email_id,

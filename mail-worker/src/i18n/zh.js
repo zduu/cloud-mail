@@ -66,6 +66,8 @@ const zh = {
 	invalidUserList: '用户列表格式无效',
 	oauthBindExpired: 'OAuth 绑定授权已过期，请重新登录',
 	oauthBindInvalid: 'OAuth 绑定授权无效',
+	resendWebhookNotConfigured: '未配置 Resend webhook secret',
+	resendWebhookInvalid: 'Resend webhook 签名无效',
 	notAdmin: '输入的邮箱不是管理员邮箱',
 	emailExistDatabase: '有邮箱已存在数据库中',
 	notConfigOss: '对象存储未配置',

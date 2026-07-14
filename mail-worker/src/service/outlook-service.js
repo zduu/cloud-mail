@@ -2,7 +2,7 @@ import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n';
 import PostalMime from 'postal-mime';
 import { connect } from 'cloudflare:sockets';
-import { escapeHtml, sanitizeHtml } from '../utils/sanitize-html';
+import { sanitizeHtml } from '../utils/sanitize-html';
 
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
 const IMAP_TOKEN_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token';
@@ -1001,7 +1001,7 @@ const outlookService = {
 		const response = await fetch(url.toString(), {
 			method,
 			headers,
-			body: body ? JSON.stringify(body) : null
+			...(body ? { body: JSON.stringify(body) } : {})
 		});
 		if (!response.ok) {
 			const detail = await responseDetail(response);

@@ -66,6 +66,8 @@ const en = {
 	invalidUserList: 'User list must be an array',
 	oauthBindExpired: 'OAuth binding authorization has expired. Please sign in again',
 	oauthBindInvalid: 'OAuth binding authorization is invalid',
+	resendWebhookNotConfigured: 'Resend webhook secret is not configured',
+	resendWebhookInvalid: 'Resend webhook signature is invalid',
 	notAdmin: 'The entered email is not an administrator email',
 	emailExistDatabase: 'Email already exists in the database',
 	notConfigOss: 'Object storage not configured',

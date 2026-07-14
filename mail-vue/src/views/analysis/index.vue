@@ -555,7 +555,6 @@ function createEmailColumnChart() {
       },
       backgroundColor: topic.value.background,
       formatter: function (params) {
-        params.marker
         return `${params.marker} ${params.seriesName}: ${params.value}`
       }
     },
@@ -925,7 +924,6 @@ function createSendGauge() {
 }
 
 </style>
-
 
 
 

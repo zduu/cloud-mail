@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectsCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import settingService from './setting-service';
 import domainUtils from '../utils/domain-uitls';
 import { settingConst } from '../const/entity-const';
@@ -43,36 +43,10 @@ const s3Service = {
 		const { bucket } = await settingService.query(c);
 
 
-		client.middlewareStack.add(
-			(next) => async (args) => {
-
-				const body = args.request.body
-
-				// 计算 MD5 校验和并转换为 Base64 编码
-				const encoder = new TextEncoder();
-				const data = encoder.encode(body);
-
-				// 使用 Web Crypto API 计算 MD5 校验和
-				const hashBuffer = await crypto.subtle.digest('MD5', data);
-				const hashArray = new Uint8Array(hashBuffer);
-				const contentMD5 = btoa(String.fromCharCode.apply(null, hashArray));
-
-				args.request.headers["Content-MD5"] = contentMD5;
-
-				return next(args);
-			},
-			{ step: "build", name: "inspectRequestMiddleware" }
-		);
-
-
-		await client.send(
-			new DeleteObjectsCommand({
-				Bucket: bucket,
-				Delete: {
-					Objects: keys.map(key => ({ Key: key }))
-				}
-			})
-		);
+		await Promise.all(keys.map(key => client.send(new DeleteObjectCommand({
+			Bucket: bucket,
+			Key: key
+		}))));
 	},
 
 	async getObj(c, key) {
@@ -83,13 +57,10 @@ const s3Service = {
 			Key: key
 		}));
 
-		return new Response(result.Body, {
-			headers: {
-				'Content-Type': result.ContentType || 'application/octet-stream',
-				'Content-Disposition': result.ContentDisposition || null,
-				'Cache-Control': result.CacheControl || null
-			}
-		});
+		const headers = new Headers({ 'Content-Type': result.ContentType || 'application/octet-stream' });
+		if (result.ContentDisposition) headers.set('Content-Disposition', result.ContentDisposition);
+		if (result.CacheControl) headers.set('Cache-Control', result.CacheControl);
+		return new Response(result.Body, { headers });
 	},
 
 

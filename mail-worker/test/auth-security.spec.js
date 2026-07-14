@@ -20,6 +20,28 @@ describe('公共 API 鉴权', () => {
 	});
 });
 
+describe('初始化与 webhook 入口', () => {
+	it('不再接受 URL 中携带初始化密钥', async () => {
+		const response = await SELF.fetch('http://example.com/api/init/local-test-only-change-me');
+		expect(response.status).toBe(404);
+	});
+
+	it('初始化接口要求 Authorization 请求头', async () => {
+		const response = await SELF.fetch('http://example.com/api/init', { method: 'POST' });
+		expect(response.status).toBe(401);
+	});
+
+	it('Resend webhook 缺少签名时拒绝请求', async () => {
+		const response = await SELF.fetch('http://example.com/api/webhooks', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ type: 'email.delivered', data: { email_id: 'test-id' } })
+		});
+		const body = await response.json();
+		expect(body.code).toBe(401);
+	});
+});
+
 describe('公共批量用户写入', () => {
 	beforeEach(async () => {
 		await env.db.exec('DROP TABLE IF EXISTS account; DROP TABLE IF EXISTS user; DROP TABLE IF EXISTS role;');
