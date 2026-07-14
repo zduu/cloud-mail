@@ -130,6 +130,8 @@
 - 为兼容 Cloudflare 将构建根目录设为 `mail-worker` 或 `mail-vue` 的情况，两个子项目原有的 `pnpm-workspace.yaml` 也分别补充 `packages: ['.']`；仓库根目录和子目录两种安装入口均具备有效工作区声明。
 - 前端子工作区的 pnpm 10 构建白名单同步补入 `@parcel/watcher`、`vue-demi`，确保直接以 `mail-vue` 为构建根目录时也不会忽略已批准的依赖脚本。
 - 已在相互隔离的临时干净目录分别验证 `mail-worker` 与 `mail-vue`：两者均可使用 pnpm 10.11.1 执行离线冻结安装，且 `pnpm ignored-builds` 均返回 `None`。
+- 首次修复推送后 Cloudflare 已越过原依赖安装阶段但远端检查仍失败；根 `package.json` 补充 `build`、`test`、`deploy` 转发脚本，兼容 Cloudflare 从仓库根目录调用 `pnpm run deploy` 等构建命令。
+- 已从仓库根目录执行 `CI=true pnpm run deploy --dry-run`，前端自定义构建、320 个静态资源读取、Worker 打包和生产配置绑定解析均成功完成。
 
 ## 生产部署时需要填写或轮换的信息
 
