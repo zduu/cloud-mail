@@ -102,6 +102,7 @@
 - 已删除用于合并的临时 `git replace` 引用，并在新历史顶端重新加入仅含占位说明的 `mail-worker/wrangler.toml`。
 - 当前仓库的本地 Git 作者配置已改为通用 noreply 身份，避免后续提交再次写入私人邮箱；该设置只影响本仓库。
 - 历史重写前已生成本地恢复包 `/tmp/cloud-mail-before-history-rewrite.bundle`；该临时文件不得提交或上传。
+- 历史重写后已重新完成最终验证：前端生产构建通过；Worker 3 个测试文件、9 个用例全部通过；Wrangler 4.90.0 使用去敏测试配置完成部署 dry-run。临时恢复包、reflog 和不可达旧对象已清理。
 
 ## 生产部署时需要填写或轮换的信息
 
