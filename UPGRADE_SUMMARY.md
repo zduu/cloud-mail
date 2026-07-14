@@ -35,14 +35,15 @@
 3. 保留 Outlook、公开预览、全部邮箱、自定义发件和分别发送等本地能力，并合入上游 AI 验证码、黑名单、Cloudflare Email Sending 等功能。
 4. 完成存储型 XSS 纵深修复、生产配置去敏和安全回归测试。
 5. 从本地 `main`、`origin/main`、`origin/dev` 的所有旧提交中移除 `mail-worker/wrangler.toml`，并匿名化仓库所有者的提交身份；未改写上游贡献者身份。
-6. 前端构建、Worker 3 个测试文件共 9 个用例、Wrangler 部署 dry-run 均已通过。
+6. 前端构建、Worker 5 个测试文件共 25 个用例、依赖零漏洞审计和 Wrangler 4.110.0 部署 dry-run 均已通过。
+7. 已使用精确 `--force-with-lease` 将脱敏后的 `main`、`dev` 推送至 zduu 的 `origin`，并回读确认远端指针正确；未向 maillab 源项目写入任何内容。
 
 ## 仓库所有者仍需执行
 
 1. 在 Cloudflare 控制台或不入库的部署配置中填写新的生产 D1、KV、域名和管理员信息。
 2. 轮换 JWT 及所有可能暴露的第三方凭据，执行 `wrangler secret put jwt_secret`，并清除旧登录会话。
-3. 审核本地重写后的历史，再使用 `--force-with-lease` 更新远端 `main`、`dev`；本次操作没有自动推送。
-4. 通知协作者重新克隆仓库，防止旧对象被再次推回。
+3. 通知协作者重新克隆仓库，防止旧对象被再次推回。
+4. 配置 zduu 仓库的 Actions Secret/Variable 后，手动运行 Cloudflare 部署工作流。
 
 ## 变更记录
 
@@ -119,6 +120,7 @@
 - Wrangler 生产打包复验发现 Outlook 服务的本地 `escapeHtml` 与新增同名导入冲突；已移除重复导入并保留原有转义实现，重新开始完整复验。
 - 独立静态分析继续修复运行边界：S3 删除改用无需 MD5 的单对象删除，避免 Workers WebCrypto 不支持 MD5；无效邮箱置顶/全部收件返回 404；KV/S3 不再写入字符串 `null` 响应头；删除引用未定义变量的死函数、空测试入口及无用导入，并清理可疑表达式。
 - 推送前最终复验通过：Worker 5 个测试文件共 25 项用例全部成功；前端 Vite 7.3.6 生产构建成功；Wrangler 4.110.0 部署 dry-run 成功；Worker/前端生产依赖均为零已知漏洞；peer、冻结锁文件安装、YAML、Shell/Node 语法、合并标记和静态分析错误检查全部通过。
+- 已将重写后的 `main`（`919b7fd`）和 `dev`（`0952c93`）强制安全推送到 `git@github.com:zduu/cloud-mail.git`；远端回读一致，Actions 未自动运行，maillab 源仓库未配置为本地远程且未被访问写入。
 
 ## 生产部署时需要填写或轮换的信息
 
