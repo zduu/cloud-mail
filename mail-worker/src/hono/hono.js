@@ -3,8 +3,15 @@ const app = new Hono();
 
 import result from '../model/result';
 import { cors } from 'hono/cors';
+import { ensureSchema } from '../init/schema-migrate';
 
 app.use('*', cors());
+app.use('*', async (c, next) => {
+	if (c.env.db && c.env.kv) {
+		await ensureSchema(c);
+	}
+	return next();
+});
 
 app.onError((err, c) => {
 	if (err.name === 'BizError') {
@@ -29,5 +36,4 @@ app.onError((err, c) => {
 });
 
 export default app;
-
 

@@ -6,6 +6,7 @@ import emailService from './service/email-service';
 import oauthService from "./service/oauth-service";
 import analysisService from './service/analysis-service';
 import r2Service from './service/r2-service';
+import { ensureSchema } from './init/schema-migrate';
 export default {
 	 async fetch(req, env, ctx) {
 
@@ -25,6 +26,7 @@ export default {
 	},
 	email: email,
 	async scheduled(c, env, ctx) {
+		await ensureSchema({ env });
 		if (c.cron === '*/30 * * * *') {
 			await analysisService.refreshEchartsCache({ env })
 			return;

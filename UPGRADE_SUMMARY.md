@@ -130,6 +130,11 @@
 - Cloudflare 新日志确认其构建根目录为 `mail-worker`：依赖阶段仅安装 Worker 的 157 个包，随后前端构建因 `vite: not found` 失败。
 - 删除两个会截断父级工作区查找的子项目 `pnpm-workspace.yaml`；在临时干净副本中从 `mail-worker` 执行冻结安装后，pnpm 已正确继承根工作区并安装全部 592 个包，前端 Vite 可执行文件存在且没有构建脚本被忽略。
 - 当前工作树再次从 `mail-worker` 入口完成冻结安装并显示 `Scope: all 3 workspace projects`，随后根部署 dry-run 成功，确认该布局与 Cloudflare 的实际构建根目录一致。
+- 线上邮件列表查询暴露旧 D1 核心结构未完整升级：KV schema 版本可能已达到旧上限，但 `email` 新字段、`account.name` 等列或 `star` 表仍可能缺失。自动迁移版本提升至 10，按 `PRAGMA table_info` 幂等补齐当前查询所需结构，并避免非重复列错误被静默吞掉后错误提升版本号。
+- 新增旧数据库回归测试：从仅含早期基础字段、KV schema 版本为 9 的数据库出发，验证自动迁移补齐全部邮件列表字段、创建 `star` 表，并能直接执行发生线上错误的邮件列表查询。
+- 自动迁移已前置到 Hono 全局中间件和定时任务入口，邮件列表无需依赖设置页缓存刷新或人工初始化；迁移异常仍由统一 API 错误处理返回。测试通过真实 Worker 请求触发迁移后再执行邮件列表查询。
+- 核心迁移同时补齐早期 `attachments.status/type`；回归数据库加入真实账户和邮件记录，覆盖邮件列表成功返回后继续加载附件的完整路径。
+- 自动迁移修复最终复验通过：Worker 6 个测试文件共 26 项用例全部成功，Wrangler 4.110.0 使用测试配置完成前端构建、320 个静态资源读取和部署 dry-run，Git 差异检查无格式错误。
 - 首次修复推送后 Cloudflare 已越过原依赖安装阶段但远端检查仍失败；根 `package.json` 补充 `build`、`test`、`deploy` 转发脚本，兼容 Cloudflare 从仓库根目录调用 `pnpm run deploy` 等构建命令。
 - 已从仓库根目录执行 `CI=true pnpm run deploy --dry-run`，前端自定义构建、320 个静态资源读取、Worker 打包和生产配置绑定解析均成功完成。
 - 第二次远端构建已持续超过首次根工作区冷安装耗时；为避免 Wrangler 自定义构建重复安装前端并在非交互环境等待模块清理确认，三个 Wrangler 配置均改为只执行前端构建。GitHub Actions 同步改为在仓库根目录使用统一锁文件安装一次全部依赖。

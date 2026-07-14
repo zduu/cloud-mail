@@ -1,6 +1,6 @@
 import KvConst from '../const/kv-const';
 
-export const LATEST_SCHEMA_VERSION = 9;
+export const LATEST_SCHEMA_VERSION = 10;
 
 async function getSchemaVersion(c) {
 	const raw = await c.env.kv.get(KvConst.SCHEMA_VERSION);
@@ -18,6 +18,38 @@ async function tableExists(c, tableName) {
 		.bind(tableName)
 		.first();
 	return !!row;
+}
+
+async function tableColumns(c, tableName) {
+	if (!/^[a-z_]+$/.test(tableName)) {
+		throw new Error(`Invalid table name: ${tableName}`);
+	}
+	const rows = await c.env.db.prepare(`PRAGMA table_info(${tableName})`).all();
+	return new Set((rows.results || []).map(row => row.name));
+}
+
+async function ensureColumns(c, tableName, definitions) {
+	if (!await tableExists(c, tableName)) {
+		return;
+	}
+
+	const columns = await tableColumns(c, tableName);
+	for (const [columnName, definition] of Object.entries(definitions)) {
+		if (columns.has(columnName)) {
+			continue;
+		}
+		try {
+			await c.env.db.prepare(
+				`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition};`
+			).run();
+			columns.add(columnName);
+		} catch (e) {
+			// 并发请求可能已完成同一迁移；其他错误必须继续抛出，不能错误提升版本号。
+			if (!/duplicate column name/i.test(e.message || '')) {
+				throw e;
+			}
+		}
+	}
 }
 
 export async function ensureSchema(c) {
@@ -251,6 +283,46 @@ export async function ensureSchema(c) {
 		} catch (e) {
 			console.warn(`跳过 Outlook 账号表：${e.message}`);
 		}
+	}
+
+	if (current < 10) {
+		await ensureColumns(c, 'email', {
+			code: `TEXT NOT NULL DEFAULT ''`,
+			cc: `TEXT NOT NULL DEFAULT '[]'`,
+			bcc: `TEXT NOT NULL DEFAULT '[]'`,
+			recipient: `TEXT NOT NULL DEFAULT '[]'`,
+			to_email: `TEXT NOT NULL DEFAULT ''`,
+			to_name: `TEXT NOT NULL DEFAULT ''`,
+			in_reply_to: `TEXT NOT NULL DEFAULT ''`,
+			relation: `TEXT NOT NULL DEFAULT ''`,
+			message_id: `TEXT NOT NULL DEFAULT ''`,
+			type: `INTEGER NOT NULL DEFAULT 0`,
+			status: `INTEGER NOT NULL DEFAULT 0`,
+			resend_email_id: `TEXT`,
+			message: `TEXT`,
+			unread: `INTEGER NOT NULL DEFAULT 0`
+		});
+
+		await ensureColumns(c, 'account', {
+			name: `TEXT NOT NULL DEFAULT ''`,
+			all_receive: `INTEGER NOT NULL DEFAULT 0`,
+			sort: `INTEGER NOT NULL DEFAULT 0`,
+			is_preview: `INTEGER NOT NULL DEFAULT 0`
+		});
+
+		await ensureColumns(c, 'attachments', {
+			status: `INTEGER NOT NULL DEFAULT 0`,
+			type: `INTEGER NOT NULL DEFAULT 0`
+		});
+
+		await c.env.db.prepare(`
+			CREATE TABLE IF NOT EXISTS star (
+				star_id INTEGER PRIMARY KEY AUTOINCREMENT,
+				user_id INTEGER NOT NULL,
+				email_id INTEGER NOT NULL,
+				create_time TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+			)
+		`).run();
 	}
 
 	await setSchemaVersion(c);
