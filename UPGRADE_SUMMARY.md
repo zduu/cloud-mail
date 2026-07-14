@@ -37,6 +37,7 @@
 5. 从本地 `main`、`origin/main`、`origin/dev` 的所有旧提交中移除 `mail-worker/wrangler.toml`，并匿名化仓库所有者的提交身份；未改写上游贡献者身份。
 6. 前端构建、Worker 5 个测试文件共 25 个用例、依赖零漏洞审计和 Wrangler 4.110.0 部署 dry-run 均已通过。
 7. 已使用精确 `--force-with-lease` 将脱敏后的 `main`、`dev` 推送至 zduu 的 `origin`，并回读确认远端指针正确；未向 maillab 源项目写入任何内容。
+8. 已补充仓库根目录 pnpm 工作区入口，修复 Cloudflare 在根目录执行 `pnpm install --frozen-lockfile` 时因工作区缺少 `packages` 字段而失败的问题。
 
 ## 仓库所有者仍需执行
 
@@ -121,6 +122,14 @@
 - 独立静态分析继续修复运行边界：S3 删除改用无需 MD5 的单对象删除，避免 Workers WebCrypto 不支持 MD5；无效邮箱置顶/全部收件返回 404；KV/S3 不再写入字符串 `null` 响应头；删除引用未定义变量的死函数、空测试入口及无用导入，并清理可疑表达式。
 - 推送前最终复验通过：Worker 5 个测试文件共 25 项用例全部成功；前端 Vite 7.3.6 生产构建成功；Wrangler 4.110.0 部署 dry-run 成功；Worker/前端生产依赖均为零已知漏洞；peer、冻结锁文件安装、YAML、Shell/Node 语法、合并标记和静态分析错误检查全部通过。
 - 已将重写后的 `main`（`919b7fd`）和 `dev`（`0952c93`）强制安全推送到 `git@github.com:zduu/cloud-mail.git`；远端回读一致，Actions 未自动运行，maillab 源仓库未配置为本地远程且未被访问写入。
+- Cloudflare 构建日志显示根目录依赖安装失败，报错为 `packages field missing or empty`；确认根目录缺少工作区清单，且两个子项目工作区配置均未声明 `packages`。
+- 新增根目录 `package.json` 和 `pnpm-workspace.yaml`，将 `mail-vue`、`mail-worker` 纳入统一工作区，并合并现有最小依赖构建白名单；固定 Cloudflare 当前使用的 pnpm 版本为 10.11.1。
+- 使用 pnpm 10.11.1 生成根目录统一锁文件，使 Cloudflare 的 `--frozen-lockfile` 安装可以直接校验两个子项目依赖而无需现场改写锁文件。
+- Cloudflare 等价冻结安装已通过；同时将原先已批准的 `@parcel/watcher`、`vue-demi` 补入 pnpm 10 的 `onlyBuiltDependencies`，避免 pnpm 10 忽略 pnpm 11 `allowBuilds` 配置后跳过前端所需构建脚本。
+- 根工作区修复复验通过：无 `node_modules` 的临时干净副本可使用 pnpm 10.11.1 离线执行冻结安装，592 个包全部安装且无构建脚本被忽略；前端生产构建成功，Worker 5 个测试文件共 25 项用例通过，Wrangler 4.110.0 部署 dry-run 成功，前后端生产依赖审计均为零已知漏洞。
+- 为兼容 Cloudflare 将构建根目录设为 `mail-worker` 或 `mail-vue` 的情况，两个子项目原有的 `pnpm-workspace.yaml` 也分别补充 `packages: ['.']`；仓库根目录和子目录两种安装入口均具备有效工作区声明。
+- 前端子工作区的 pnpm 10 构建白名单同步补入 `@parcel/watcher`、`vue-demi`，确保直接以 `mail-vue` 为构建根目录时也不会忽略已批准的依赖脚本。
+- 已在相互隔离的临时干净目录分别验证 `mail-worker` 与 `mail-vue`：两者均可使用 pnpm 10.11.1 执行离线冻结安装，且 `pnpm ignored-builds` 均返回 `None`。
 
 ## 生产部署时需要填写或轮换的信息
 

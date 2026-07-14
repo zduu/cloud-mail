@@ -1,12 +1,17 @@
 packages:
-  - .
+  - mail-vue
+  - mail-worker
 
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true
+  sharp: true
   vue-demi: true
+  workerd: true
+
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - sharp
   - vue-demi
+  - workerd
