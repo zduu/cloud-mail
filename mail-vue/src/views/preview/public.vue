@@ -62,7 +62,7 @@
               <span class="time">{{ formatTime(currentEmail.createTime) }}</span>
             </div>
           </div>
-          <div class="detail-body" v-html="formatContent(currentEmail.content || '')"></div>
+          <ShadowHtml class="detail-body" :html="formatContent(currentEmail.content || '')" v-if="currentEmail.content"/>
           <div class="detail-text" v-if="!currentEmail.content && currentEmail.text">
             <pre>{{ currentEmail.text }}</pre>
           </div>
@@ -84,6 +84,7 @@ import {useSettingStore} from "@/store/setting.js";
 import {toOssDomain} from "@/utils/convert.js";
 import {formatDetailDate} from "@/utils/day.js";
 import {Icon} from "@iconify/vue";
+import ShadowHtml from '@/components/shadow-html/index.vue';
 
 const route = useRoute();
 const {t} = useI18n();

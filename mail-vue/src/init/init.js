@@ -40,7 +40,8 @@ export async function init() {
         document.title = setting.title;
 
         if (user) {
-            accountStore.currentAccountId = user.accountId;
+            accountStore.currentAccountId = user.account.accountId;
+            accountStore.currentAccount = user.account;
             userStore.user = user;
 
             const routers = permsToRouter(user.permKeys);
@@ -57,17 +58,4 @@ export async function init() {
         settingStore.sendDomainList = setting.sendDomainList || [];
         document.title = setting.title;
     }
-
-    removeLoading();
-}
-
-function removeLoading() {
-    if (window.innerWidth < 1025) {
-        document.documentElement.style.setProperty('--loading-hide-transition', 'none')
-    }
-    const doc = document.getElementById('loading-first');
-    doc.classList.add('loading-hide')
-    setTimeout(() => {
-        doc.remove()
-    },1000)
 }

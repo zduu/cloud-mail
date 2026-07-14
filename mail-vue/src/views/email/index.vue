@@ -44,11 +44,13 @@ import {computed, defineOptions, onMounted, reactive, ref, watch} from "vue";
 import {sleep} from "@/utils/time-utils.js";
 import router from "@/router/index.js";
 import {Icon} from "@iconify/vue";
+import { useRoute } from 'vue-router'
 
 defineOptions({
   name: 'email'
 })
 
+const route = useRoute();
 const emailStore = useEmailStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
@@ -91,44 +93,45 @@ const existIds = new Set();
 
 async function latest() {
   while (true) {
+
+    let autoRefresh = settingStore.settings.autoRefresh;
+    await sleep(autoRefresh > 1 ? autoRefresh * 1000 : 3000);
+
+    if (route.name !== 'email') {
+      continue;
+    }
+
     const latestId = scroll.value.latestEmail?.emailId
 
-    if (!scroll.value.firstLoad && settingStore.settings.autoRefreshTime) {
+    if (!scroll.value.firstLoad && autoRefresh > 1) {
       try {
-        const accountId = isAllScope.value ? 0 : accountStore.currentAccountId
-        const curTimeSort = params.timeSort
         const curScopeAll = isAllScope.value
+        const accountId = curScopeAll ? 0 : accountStore.currentAccountId
+        const allReceive = curScopeAll ? 1 : (scroll.value.latestEmail?.allReceive ?? accountStore.currentAccount?.allReceive ?? 0)
+        const curTimeSort = params.timeSort
         let list = []
 
         //确保发起请求时最后一个邮件是当前账号的,或者
-        if (curScopeAll || accountId === scroll.value.latestEmail?.accountId) {
-          list = await emailLatest(latestId, accountId, curScopeAll ? 1 : 0);
+        if (curScopeAll || accountId === scroll.value.latestEmail?.reqAccountId || accountId === scroll.value.latestEmail?.accountId) {
+          list = await emailLatest(latestId, accountId, allReceive, curScopeAll ? 1 : 0);
         }
 
-        //确保请求回来后，账号没有切换，时间排序没有改变
+        //确保请求回来后，账号、时间排序、范围和全部收件设置没有改变
         const accountNoChange = curScopeAll || accountId === accountStore.currentAccountId
+        const allReceiveNoChange = curScopeAll || allReceive === accountStore.currentAccount?.allReceive
 
-        if (accountNoChange && params.timeSort === curTimeSort && curScopeAll === isAllScope.value) {
+        if (accountNoChange && allReceiveNoChange && params.timeSort === curTimeSort && curScopeAll === isAllScope.value) {
           if (list.length > 0) {
 
             for (let email of list) {
+
+              email.reqAccountId = accountId;
+              email.allReceive = allReceive;
 
               if (!existIds.has(email.emailId)) {
 
                 existIds.add(email.emailId)
                 scroll.value.addItem(email)
-
-                if (innerWidth > 1367) {
-                  ElNotification({
-                    type: 'primary',
-                    message: `<div style="cursor: pointer;"><div style="overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-weight: bold;font-size: 16px;margin-bottom: 5px;">${email.name}</div><div style="color: teal;">${email.subject}</div></div>`,
-                    position: 'bottom-right',
-                    dangerouslyUseHTMLString: true,
-                    onClick: () => {
-                      jumpContent(email);
-                    }
-                  })
-                }
 
                 await sleep(50)
               }
@@ -139,10 +142,12 @@ async function latest() {
 
         }
       } catch (e) {
+        if (e.code === 401 || e.code === 403) {
+          settingStore.settings.autoRefresh = 0;
+        }
         console.error(e)
       }
     }
-    await sleep(settingStore.settings.autoRefreshTime * 1000)
   }
 }
 
@@ -157,7 +162,14 @@ function cancelStar(email) {
 function getEmailList(emailId, size) {
   const allAccount = isAllScope.value ? 1 : 0
   const accountId = allAccount ? 0 : accountStore.currentAccountId
-  return emailList(accountId, emailId, params.timeSort, size, 0, allAccount)
+  const allReceive = allAccount ? 1 : (accountStore.currentAccount?.allReceive ?? 0)
+  return emailList(accountId, allReceive, emailId, params.timeSort, size, 0, allAccount).then(data => {
+    if (data.latestEmail) {
+      data.latestEmail.reqAccountId = accountId;
+      data.latestEmail.allReceive = allReceive;
+    }
+    return data;
+  })
 }
 
 </script>
