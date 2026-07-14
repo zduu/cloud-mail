@@ -21,7 +21,7 @@
 - 当前项目与上游提交 ID 历史不同，但在以下两个提交存在完全相同的源码树：
   - 当前历史：`9ec5345`。
   - 上游历史：`70923fe`。
-- 升级将以该相同源码树建立临时历史桥接，再执行三方合并。
+- 升级已利用该相同源码树建立临时历史桥接并完成三方合并；临时 `git replace` 引用已删除。
 - `temp/cloud-mail-main` 的关键依赖版本高于当前项目：
   - Worker：Hono `4.12.16`、Wrangler `^4.90.0`。
   - 前端：Axios `1.15.2`、Element Plus `^2.13.1`，并新增 `@vueuse/components`。
@@ -30,19 +30,19 @@
 
 ## 已完成
 
-1. 阅读 `temp/task.md` 并完成异常付款邮件与 XSS 风险排查。
-2. 对比当前项目、`temp/cloud-mail-main` 和上游仓库的关键版本与源文件。
-3. 确认应采用三方合并保留本地二改，而不是直接覆盖目录。
-4. 创建本文档，后续每次改动同步记录。
+1. 阅读 `temp/task.md`，确认付款邮件本身不含 XSS，但邮件转发会扩大验证码泄露范围。
+2. 对比当前项目、`temp/cloud-mail-main` 和上游仓库，以三方合并完成本地升级并解决 15 个冲突。
+3. 保留 Outlook、公开预览、全部邮箱、自定义发件和分别发送等本地能力，并合入上游 AI 验证码、黑名单、Cloudflare Email Sending 等功能。
+4. 完成存储型 XSS 纵深修复、生产配置去敏和安全回归测试。
+5. 从本地 `main`、`origin/main`、`origin/dev` 的所有旧提交中移除 `mail-worker/wrangler.toml`，并匿名化仓库所有者的提交身份；未改写上游贡献者身份。
+6. 前端构建、Worker 3 个测试文件共 9 个用例、Wrangler 部署 dry-run 均已通过。
 
-## 待完成
+## 仓库所有者仍需执行
 
-1. 合并上游升级并解决冲突。
-2. 复核 Outlook、邮件预览等本地二改是否完整保留。
-3. 补齐 XSS、公开生产密钥等安全修复。
-4. 更新依赖锁文件。
-5. 运行前端构建、Worker 测试与最终差异审计。
-6. 扫描敏感信息，重写 Git 历史并给出远程强制推送步骤。
+1. 在 Cloudflare 控制台或不入库的部署配置中填写新的生产 D1、KV、域名和管理员信息。
+2. 轮换 JWT 及所有可能暴露的第三方凭据，执行 `wrangler secret put jwt_secret`，并清除旧登录会话。
+3. 审核本地重写后的历史，再使用 `--force-with-lease` 更新远端 `main`、`dev`；本次操作没有自动推送。
+4. 通知协作者重新克隆仓库，防止旧对象被再次推回。
 
 ## 变更记录
 
@@ -98,17 +98,24 @@
 - 提交前审计确认 Outlook、邮件预览分享、“全部邮箱”等本地二改仍存在，上游 AI 验证码、黑名单、Cloudflare Email Sending、账户置顶等能力已合入；当前工作树敏感生产值扫描无命中。
 - 已创建升级合并提交 `feat: 升级上游版本并修复邮件 XSS`。历史清理将从待推送分支的全部旧提交中移除本地 Wrangler 配置文件，再仅在新历史顶端加入去敏版本。
 - 上游合并冲突已全部清零，并恢复用户升级前已有的 `.gitignore` 修改和 `OUTLOOK_FEATURE_PLAN.md` 删除状态。
+- 已完成本地历史脱敏：重写 `main`、`origin/main`、`origin/dev` 的可达历史，旧提交不再包含 `mail-worker/wrangler.toml`；仓库所有者提交身份改为通用 noreply 身份，上游贡献者信息保持不变。
+- 已删除用于合并的临时 `git replace` 引用，并在新历史顶端重新加入仅含占位说明的 `mail-worker/wrangler.toml`。
+- 历史重写前已生成本地恢复包 `/tmp/cloud-mail-before-history-rewrite.bundle`；该临时文件不得提交或上传。
 
-## 生产配置待替换信息
+## 生产部署时需要填写或轮换的信息
 
 以下字段不得继续以生产值提交到公开仓库：
 
-- `domain`：生产收信域名列表。
-- `admin`：生产管理员邮箱。
-- `jwt_secret`：JWT 签名密钥，必须立即轮换并改用 Cloudflare Secret。
-- `database_name`、`database_id`：生产 D1 数据库名称和标识。
-- KV namespace `id`：生产 KV 命名空间标识。
-- 如果其他 Wrangler 配置中存在 R2 bucket、S3、OAuth、Telegram、Resend 或 Cloudflare 凭据，也必须替换为占位符或 Secret。
+- `domain`：填写新的生产收信域名列表；公开仓库中只保留示例。
+- `admin`：填写生产管理员邮箱；如该地址涉及隐私，放入不入库的部署变量。
+- `jwt_secret`：生成新的高强度随机值，使用 `wrangler secret put jwt_secret` 注入，禁止写回 TOML。
+- `database_name`、`database_id`：填写实际 D1 数据库名称和 ID；这些属于基础设施标识，不再提交到公开历史。
+- KV namespace `id`：填写实际 KV 命名空间 ID，不再提交到公开历史。
+- `bucket_name`：使用 R2 时填写实际 bucket 名称；S3 访问密钥必须使用 Secret。
+- Telegram Bot Token、Resend Key、OAuth Client Secret、Cloudflare API Token：全部轮换并通过 Secret 注入。
+- Outlook/Microsoft OAuth：复核回调地址、Client ID；Client Secret 必须轮换并从仓库配置中移除。
+
+推荐把无敏感性的功能开关保留在 `[vars]`，把签名密钥、API Token 和 OAuth Secret 放入 Cloudflare Secret；生产资源 ID、域名和管理员邮箱使用私有部署配置或 CI 环境变量生成，不直接修改并提交公开版 `wrangler.toml`。
 
 ## 旧版本安全问题弥补措施
 

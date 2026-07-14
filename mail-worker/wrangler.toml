@@ -1,0 +1,47 @@
+name = "cloud-mail"
+main = "src/index.js"
+compatibility_date = "2025-06-04"
+keep_vars = true
+
+[observability]
+enabled = true
+
+#[[d1_databases]]
+#binding = "db"            # D1 绑定名
+#database_name = ""        # 生产数据库名称不要提交到仓库
+#database_id = ""          # 生产数据库 ID 不要提交到仓库
+
+#[[kv_namespaces]]
+#binding = "kv"            # KV 绑定名
+#id = ""                   # 生产 KV namespace ID 不要提交到仓库
+
+#[[r2_buckets]]
+#binding = "r2"
+#bucket_name = ""
+
+#[[send_email]]
+#name = "email"            # 配置后优先使用 Cloudflare Email Sending
+
+[ai]
+binding = "ai"
+
+[assets]
+binding = "assets"
+directory = "./dist"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+[triggers]
+crons = ["0 16 * * *"]
+
+[vars]
+#ai_model = ""
+#analysis_cache = false
+#orm_log = false
+#domain = []               # 例如 ["example.com"]，生产域名不要提交到仓库
+#admin = ""                # 例如 "admin@example.com"
+#project_link = true
+# jwt_secret 不要配置在此处，请使用 `wrangler secret put jwt_secret`
+
+[build]
+command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
