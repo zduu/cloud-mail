@@ -139,6 +139,7 @@
 - 生产 Wrangler 配置新增不含资源 ID 的 `unsafe.metadata.keep_bindings`，保留普通变量、Secrets、KV、D1、R2 和 Email Sending 绑定，避免自动部署后反复手工重绑。
 - Wrangler 4.110.0 debug dry-run 已确认最终上传元数据包含上述 `keep_bindings`，配置解析和打包均通过；由于现有线上绑定已被前一轮部署删除，需要在本修复部署后最后手工绑定一次，后续自动部署将继续保留。
 - 修复部署成功且生产 D1/KV 已重新绑定，公开设置接口恢复 200；准备通过下一次真实 Workers Builds 自动部署验证绑定跨部署持久化。
+- 提交 `b341357` 触发的真实 Workers Builds 自动部署成功，部署后公开设置接口仍返回 200 且包含有效数据，确认生产 D1/KV 绑定已跨部署保留，不再需要每次手工重绑。
 - 首次修复推送后 Cloudflare 已越过原依赖安装阶段但远端检查仍失败；根 `package.json` 补充 `build`、`test`、`deploy` 转发脚本，兼容 Cloudflare 从仓库根目录调用 `pnpm run deploy` 等构建命令。
 - 已从仓库根目录执行 `CI=true pnpm run deploy --dry-run`，前端自定义构建、320 个静态资源读取、Worker 打包和生产配置绑定解析均成功完成。
 - 第二次远端构建已持续超过首次根工作区冷安装耗时；为避免 Wrangler 自定义构建重复安装前端并在非交互环境等待模块清理确认，三个 Wrangler 配置均改为只执行前端构建。GitHub Actions 同步改为在仓库根目录使用统一锁文件安装一次全部依赖。
