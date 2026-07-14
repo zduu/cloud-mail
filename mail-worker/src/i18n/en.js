@@ -88,6 +88,7 @@ const en = {
 	outlookTokenFailed: 'Failed to get Outlook access token',
 	outlookRequestFailed: 'Outlook request failed',
 	outlookMessageEmpty: 'Message ID cannot be empty',
+	outlookMessageInvalid: 'Invalid Outlook message ID',
 	outlookAttachmentEmpty: 'Attachment ID cannot be empty',
 	perms: {
 		"邮件": "Emails",

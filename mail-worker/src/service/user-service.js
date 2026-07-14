@@ -18,6 +18,7 @@ import { t } from '../i18n/i18n'
 import reqUtils from '../utils/req-utils';
 import {oauth} from "../entity/oauth";
 import oauthService from "./oauth-service";
+import adminUtils from '../utils/admin-utils';
 
 const userService = {
 
@@ -32,7 +33,7 @@ const userService = {
 		const [account, roleRow, permKeys] = await Promise.all([
 			accountService.selectByEmailIncludeDel(c, userRow.email),
 			roleService.selectById(c, userRow.type),
-			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
+			adminUtils.isAdminEmail(c, userRow.email) ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
 		]);
 
 		const user = {};
@@ -45,7 +46,7 @@ const userService = {
 		user.role = roleRow;
 		user.type = userRow.type;
 
-		if (c.env.admin === userRow.email) {
+		if (adminUtils.isAdminEmail(c, userRow.email)) {
 			user.role = constant.ADMIN_ROLE
 			user.type = 0;
 		}
@@ -206,7 +207,7 @@ const userService = {
 				sendAction.hasPerm = false;
 			}
 
-			if (user.email === c.env.admin) {
+			if (adminUtils.isAdminEmail(c, user.email)) {
 				sendAction.sendType = constant.ADMIN_ROLE.sendType;
 				sendAction.sendCount = constant.ADMIN_ROLE.sendCount;
 				sendAction.hasPerm = true;

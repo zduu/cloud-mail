@@ -23,6 +23,7 @@ import { t } from '../i18n/i18n'
 import domainUtils from '../utils/domain-uitls';
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
+import adminUtils from '../utils/admin-utils';
 
 const emailService = {
 
@@ -640,7 +641,7 @@ const emailService = {
 				let { banEmail, availDomain } = roleRow;
 
 				//如果收件人没有这个域名的使用权限和有邮件拦截，就把邮件改为拒收状态
-				if (email !== c.env.admin) {
+				if (!adminUtils.isAdminEmail(c, email)) {
 
 					if (!roleService.hasAvailDomainPerm(availDomain, email)) {
 						emailValues.status = emailConst.status.BOUNCED;

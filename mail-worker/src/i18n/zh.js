@@ -88,6 +88,7 @@ const zh = {
 	outlookTokenFailed: 'Outlook 访问令牌获取失败',
 	outlookRequestFailed: 'Outlook 请求失败',
 	outlookMessageEmpty: '邮件 ID 不能为空',
+	outlookMessageInvalid: 'Outlook 邮件 ID 无效',
 	outlookAttachmentEmpty: '附件 ID 不能为空',
 	perms: {
 		"邮件": "邮件",

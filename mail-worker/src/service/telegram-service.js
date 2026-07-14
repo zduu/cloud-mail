@@ -13,6 +13,7 @@ import emailTextTemplate from '../template/email-text';
 import emailHtmlTemplate from '../template/email-html';
 import verifyUtils from '../utils/verify-utils';
 import domainUtils from "../utils/domain-uitls";
+import constant from '../const/constant';
 
 const telegramService = {
 
@@ -49,7 +50,7 @@ const telegramService = {
 
 		const tgChatIds = tgChatId.split(',');
 
-		const jwtToken = await jwtUtils.generateToken(c, { emailId: email.emailId })
+		const jwtToken = await jwtUtils.generateToken(c, { emailId: email.emailId }, constant.TOKEN_EXPIRE)
 
 		const webAppUrl = customDomain ? `${domainUtils.toOssDomain(customDomain)}/api/telegram/getEmail/${jwtToken}` : 'https://www.cloudflare.com/404'
 		const inlineKeyboard = [

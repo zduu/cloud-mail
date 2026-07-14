@@ -12,6 +12,7 @@ import { emailConst, isDel } from '../const/entity-const';
 import { t } from '../i18n/i18n';
 import { count, desc, eq } from 'drizzle-orm';
 import dayjs from 'dayjs';
+import adminUtils from '../utils/admin-utils';
 
 const previewService = {
 
@@ -94,7 +95,12 @@ const previewService = {
 			.from(preview)
 			.where(eq(preview.accountId, previewRow.accountId))
 			.get();
-		if (total === 0) {
+		const previewAccount = await orm(c)
+			.select()
+			.from(account)
+			.where(eq(account.accountId, previewRow.accountId))
+			.get();
+		if (total === 0 && previewAccount?.isPreview === 1) {
 			const placeholderEmail = `preview-deleted-${previewRow.accountId}-${Date.now()}@local.invalid`;
 			await orm(c)
 				.update(account)
@@ -165,11 +171,11 @@ const previewService = {
 
 	async ensureAdmin(c, userId) {
 		const ctxUser = c.get?.('user');
-		if (ctxUser?.email === c.env.admin) {
+		if (adminUtils.isAdminEmail(c, ctxUser?.email)) {
 			return;
 		}
 		const userRow = await userService.selectByIdIncludeDel(c, userId);
-		if (!userRow || userRow.email !== c.env.admin) {
+		if (!userRow || !adminUtils.isAdminEmail(c, userRow.email)) {
 			throw new BizError(t('unauthorized'), 403);
 		}
 	},

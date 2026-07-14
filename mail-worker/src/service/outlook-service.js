@@ -2,6 +2,7 @@ import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n';
 import PostalMime from 'postal-mime';
 import { connect } from 'cloudflare:sockets';
+import { escapeHtml, sanitizeHtml } from '../utils/sanitize-html';
 
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
 const IMAP_TOKEN_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token';
@@ -109,14 +110,15 @@ function parseAccountString(accountString, accountFormat) {
 	};
 }
 
-function normalizeAccount(row = {}, includeSecret = false) {
+function normalizeAccount(row = {}) {
 	return {
 		outlookAccountId: row.outlook_account_id,
 		userId: row.user_id,
 		email: row.email,
-		password: includeSecret ? row.password || '' : '',
+		password: '',
+		hasPassword: !!row.password,
 		clientId: row.client_id || '',
-		refreshToken: includeSecret ? row.refresh_token || '' : '',
+		refreshToken: '',
 		hasRefreshToken: !!row.refresh_token,
 		remark: row.remark || '',
 		status: row.status || 'active',
@@ -308,6 +310,16 @@ function normalizeMessageSummary(item = {}) {
 	};
 }
 
+
+function safeMessageBody(body = {}) {
+	const contentType = String(body.contentType || body.ContentType || 'html').toLowerCase();
+	const content = body.content || body.Content || '';
+	return {
+		contentType: 'html',
+		content: contentType === 'html' ? sanitizeHtml(content) : `<pre>${escapeHtml(content)}</pre>`
+	};
+}
+
 function normalizeMessageDetail(item = {}) {
 	return {
 		id: item.id || item.Id,
@@ -318,10 +330,7 @@ function normalizeMessageDetail(item = {}) {
 		receivedDateTime: item.receivedDateTime || item.ReceivedDateTime || '',
 		isRead: !!(item.isRead ?? item.IsRead),
 		hasAttachments: !!(item.hasAttachments ?? item.HasAttachments),
-		body: {
-			contentType: item.body?.contentType || item.Body?.ContentType || 'html',
-			content: item.body?.content || item.Body?.Content || ''
-		},
+		body: safeMessageBody(item.body || item.Body || {}),
 		bodyPreview: item.bodyPreview || item.BodyPreview || ''
 	};
 }
@@ -387,26 +396,39 @@ function isImapMessageId(messageId) {
 	return String(messageId || '').startsWith(IMAP_ID_PREFIX);
 }
 
-function parseImapMessageId(messageId, fallbackFolder = 'inbox') {
+function validateImapUid(uid) {
+	const value = String(uid || '').trim();
+	if (!/^[1-9]\d{0,9}$/.test(value)) {
+		throw new BizError(t('outlookMessageInvalid'));
+	}
+	return value;
+}
+
+export function parseImapMessageId(messageId, fallbackFolder = 'inbox') {
 	const value = String(messageId || '').trim();
 	if (!value.startsWith(IMAP_ID_PREFIX)) {
 		return {
 			folder: normalizeFolder(fallbackFolder),
-			uid: value
+			uid: validateImapUid(value)
 		};
 	}
 	const rest = value.slice(IMAP_ID_PREFIX.length);
 	const separator = rest.indexOf(':');
-	if (separator === -1) {
+	try {
+		if (separator === -1) {
+			return {
+				folder: normalizeFolder(fallbackFolder),
+				uid: validateImapUid(decodeURIComponent(rest))
+			};
+		}
 		return {
-			folder: normalizeFolder(fallbackFolder),
-			uid: decodeURIComponent(rest)
+			folder: normalizeFolder(decodeURIComponent(rest.slice(0, separator))),
+			uid: validateImapUid(decodeURIComponent(rest.slice(separator + 1)))
 		};
+	} catch (error) {
+		if (error instanceof BizError) throw error;
+		throw new BizError(t('outlookMessageInvalid'));
 	}
-	return {
-		folder: normalizeFolder(decodeURIComponent(rest.slice(0, separator))),
-		uid: decodeURIComponent(rest.slice(separator + 1))
-	};
 }
 
 function quoteImapString(value) {
@@ -501,7 +523,7 @@ function normalizeParsedSummary(parsed = {}, meta = {}) {
 }
 
 function normalizeParsedDetail(parsed = {}, meta = {}) {
-	const html = parsed.html || `<pre>${escapeHtml(parsed.text || '')}</pre>`;
+	const html = parsed.html ? sanitizeHtml(parsed.html) : `<pre>${escapeHtml(parsed.text || '')}</pre>`;
 	return {
 		id: imapMessageId(meta.folder, meta.uid),
 		subject: parsed.subject || '',
@@ -751,7 +773,7 @@ const outlookService = {
 
 	async detail(c, userId, outlookAccountId) {
 		const row = await this.getAccount(c, userId, outlookAccountId);
-		return normalizeAccount(row, true);
+		return normalizeAccount(row);
 	},
 
 	async save(c, userId, params = {}) {
@@ -775,6 +797,7 @@ const outlookService = {
 
 		if (outlookAccountId) {
 			const current = await this.getAccount(c, userId, outlookAccountId);
+			const nextPassword = password || current.password || '';
 			const nextRefreshToken = refreshToken || current.refresh_token;
 			if (!nextRefreshToken) {
 				throw new BizError(t('outlookTokenEmpty'));
@@ -789,7 +812,7 @@ const outlookService = {
 					status = ?,
 					update_time = ?
 				WHERE outlook_account_id = ? AND user_id = ?
-			`).bind(email, password, clientId, nextRefreshToken, remark, status, now, outlookAccountId, userId).run();
+			`).bind(email, nextPassword, clientId, nextRefreshToken, remark, status, now, outlookAccountId, userId).run();
 			return normalizeAccount(await this.getAccount(c, userId, outlookAccountId));
 		}
 

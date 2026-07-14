@@ -16,6 +16,7 @@ import {useSettingStore} from "@/store/setting.js";
 import {computed, onBeforeUnmount, onMounted, watch} from "vue";
 import { useRoute } from 'vue-router'
 import { hasPerm } from "@/perm/perm.js"
+import { sanitizeEmailHtml } from '@/utils/sanitize-email-html.js'
 
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
@@ -23,6 +24,7 @@ const route = useRoute()
 let  innerWidth =  window.innerWidth
 
 let elNotification = null
+let noticeStyle = null
 
 const accountShow = computed(() => {
   return uiStore.accountShow && settingStore.settings.manyEmail === 0
@@ -60,22 +62,24 @@ function showNotice(data) {
     elNotification.close()
   }
 
-  const style = document.createElement('style');
-  style.innerHTML = `
+	const width = Math.min(1200, Math.max(240, Number(data.noticeWidth) || 340))
+	if (!noticeStyle) {
+	  noticeStyle = document.createElement('style')
+	  document.head.appendChild(noticeStyle)
+	}
+	noticeStyle.textContent = `
   .custom-notice.el-notification {
-    --el-notification-width: min(${data.noticeWidth}px,calc(100% - 30px)) !important;
+    --el-notification-width: min(${width}px,calc(100% - 30px)) !important;
   }
   `;
 
-  document.head.appendChild(style);
-
-  elNotification = ElNotification({
-    title: data.noticeTitle,
-    message: `<div style="width: 100%;height: 100%;">${data.noticeContent}</div>`,
-    type: data.noticeType === 'none' ? '' : data.noticeType,
-    duration: data.noticeDuration,
-    position: data.noticePosition,
-    offset: data.noticeOffset,
+	elNotification = ElNotification({
+	  title: data.noticeTitle,
+	  message: `<div style="width: 100%;height: 100%;">${sanitizeEmailHtml(data.noticeContent || '')}</div>`,
+	  type: data.noticeType === 'none' ? '' : data.noticeType,
+	  duration: Math.min(86400000, Math.max(0, Number(data.noticeDuration) || 0)),
+	  position: data.noticePosition,
+	  offset: Math.min(1000, Math.max(0, Number(data.noticeOffset) || 0)),
     dangerouslyUseHTMLString: true,
     customClass: 'custom-notice'
   })
@@ -88,6 +92,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  noticeStyle?.remove()
+  noticeStyle = null
 })
 
 const handleResize = () => {

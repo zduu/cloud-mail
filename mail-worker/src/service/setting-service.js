@@ -108,7 +108,7 @@ const settingService = {
 			}
 		}
 
-		if (!setting) {
+		if (!settingRow) {
 			throw new BizError('数据库未初始化 Database not initialized.');
 		}
 

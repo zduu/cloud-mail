@@ -166,6 +166,7 @@ import {
   outlookMailList,
   outlookMailRead
 } from "@/request/outlook.js";
+import {sanitizeEmailHtml} from '@/utils/sanitize-email-html.js';
 
 const {t} = useI18n();
 
@@ -208,7 +209,7 @@ const folderOptions = computed(() => [
 const selectedMessageIds = computed(() => selectedRows.value.map(row => row.id));
 
 const detailHtml = computed(() => {
-  const body = detail.value?.body?.content || '';
+  const body = sanitizeEmailHtml(detail.value?.body?.content || '');
   return `<!doctype html><html><head><base target="_blank"><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;color:#1f2937;margin:0;padding:16px;word-break:break-word}img{max-width:100%;height:auto}table{max-width:100%}</style></head><body>${body}</body></html>`;
 });
 

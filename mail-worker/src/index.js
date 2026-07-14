@@ -6,6 +6,7 @@ import emailService from './service/email-service';
 import kvObjService from './service/kv-obj-service';
 import oauthService from "./service/oauth-service";
 import analysisService from './service/analysis-service';
+import r2Service from './service/r2-service';
 export default {
 	 async fetch(req, env, ctx) {
 
@@ -18,7 +19,7 @@ export default {
 		}
 
 		 if (['/static/','/attachments/'].some(p => url.pathname.startsWith(p))) {
-			 return await kvObjService.toObjResp( { env }, url.pathname.substring(1));
+			 return await r2Service.getObjResponse({ env }, url.pathname.substring(1));
 		 }
 
 		return env.assets.fetch(req);
