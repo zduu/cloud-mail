@@ -100,6 +100,7 @@
 - 上游合并冲突已全部清零，并恢复用户升级前已有的 `.gitignore` 修改和 `OUTLOOK_FEATURE_PLAN.md` 删除状态。
 - 已完成本地历史脱敏：重写 `main`、`origin/main`、`origin/dev` 的可达历史，旧提交不再包含 `mail-worker/wrangler.toml`；仓库所有者提交身份改为通用 noreply 身份，上游贡献者信息保持不变。
 - 已删除用于合并的临时 `git replace` 引用，并在新历史顶端重新加入仅含占位说明的 `mail-worker/wrangler.toml`。
+- 当前仓库的本地 Git 作者配置已改为通用 noreply 身份，避免后续提交再次写入私人邮箱；该设置只影响本仓库。
 - 历史重写前已生成本地恢复包 `/tmp/cloud-mail-before-history-rewrite.bundle`；该临时文件不得提交或上传。
 
 ## 生产部署时需要填写或轮换的信息
